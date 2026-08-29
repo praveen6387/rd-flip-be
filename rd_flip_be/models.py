@@ -40,6 +40,7 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
     class Meta:
+        db_table = "users"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
@@ -72,6 +73,7 @@ class Flipbook(models.Model):
     updated_by = models.UUIDField(null=True, blank=True)
 
     class Meta:
+        db_table = "flipbooks"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
@@ -103,6 +105,7 @@ class FlipbookPage(models.Model):
     updated_by = models.UUIDField(null=True, blank=True)
 
     class Meta:
+        db_table = "flipbook_pages"
         ordering = ["page_number"]
         unique_together = ("flipbook", "page_number")
 
