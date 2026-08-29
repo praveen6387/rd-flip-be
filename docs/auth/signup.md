@@ -20,6 +20,7 @@ Back to [Auth index](./README.md)
 | `phone` | Yes | Indian mobile. Saved as `+91…`. If already has `+91`, it is not doubled. |
 | `password` | Yes | Min 8 characters |
 | `email` | No | If empty/missing → `{10digitphone}@gmail.com` |
+| `dob` | No | Date of birth (`YYYY-MM-DD`) |
 | `studio_name` | No | Studio name |
 
 **Not accepted on signup** (update API later):
@@ -53,7 +54,7 @@ Invalid numbers (wrong length / not starting with 6–9) are rejected.
 
 ## cURL
 
-### Without email
+### Without email / dob
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
@@ -69,7 +70,7 @@ curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
 
 Email saved as: `9876543210@gmail.com`
 
-### With email
+### With email and dob
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
@@ -80,6 +81,7 @@ curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
     "email": "praveen@example.com",
     "phone": "9876543210",
     "password": "secret123",
+    "dob": "1995-08-15",
     "studio_name": "My Studio"
   }'
 ```
@@ -95,6 +97,7 @@ curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
     "user_id": "uuid-here",
     "first_name": "Praveen",
     "last_name": "Maurya",
+    "dob": "1995-08-15",
     "email": "9876543210@gmail.com",
     "phone": "+919876543210",
     "studio_name": "My Studio",
@@ -103,6 +106,8 @@ curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
   }
 }
 ```
+
+If `dob` was not sent, it will be `null`.
 
 ---
 

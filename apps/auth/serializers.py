@@ -15,6 +15,7 @@ class SignupSerializer(serializers.ModelSerializer):
         fields = (
             "first_name",
             "last_name",
+            "dob",
             "email",
             "phone",
             "password",
@@ -22,6 +23,7 @@ class SignupSerializer(serializers.ModelSerializer):
         )
         extra_kwargs = {
             "studio_name": {"required": False, "allow_blank": True},
+            "dob": {"required": False, "allow_null": True},
         }
 
     def resolve_signup_email(self, email: str, phone: str) -> str:
@@ -71,6 +73,7 @@ class SignupResponseSerializer(serializers.ModelSerializer):
             "user_id",
             "first_name",
             "last_name",
+            "dob",
             "email",
             "phone",
             "studio_name",

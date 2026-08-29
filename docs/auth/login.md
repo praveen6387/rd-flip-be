@@ -62,6 +62,7 @@ curl -X POST http://127.0.0.1:8000/api/auth/login/ \
     "user_id": "uuid-here",
     "first_name": "Praveen",
     "last_name": "Maurya",
+    "dob": "1995-08-15",
     "email": "9876543210@gmail.com",
     "phone": "+919876543210",
     "studio_name": "My Studio",
