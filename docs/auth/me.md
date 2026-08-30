@@ -1,9 +1,10 @@
 # Me (profile)
 
-Return the authenticated user's full profile for the profile page.
+Return the authenticated user's full profile, or update social links.
 
 ```http
-GET /api/auth/me/
+GET  /api/auth/me/
+PUT  /api/auth/me/
 Authorization: Bearer <access_token>
 ```
 
@@ -74,6 +75,72 @@ Missing or invalid token:
   "status": "fail",
   "message": "Authentication credentials were not provided.",
   "details": "Authentication credentials were not provided.",
+  "data": null
+}
+```
+
+---
+
+## Update social links (`PUT`)
+
+Update WhatsApp, Instagram, and/or Facebook. JWT required. Send only the fields you want to change; omit a field to leave it unchanged. Send `""` to clear a field.
+
+Sets `updated_by` to the current user's `user_id`.
+
+```http
+PUT /api/auth/me/
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+### Request body
+
+| Field | Required | Notes |
+|-------|----------|--------|
+| `whatsapp_number` | No | Same Indian mobile rules as signup phone. Saved as `+91…`. |
+| `instagram_url` | No | Full URL (e.g. `https://instagram.com/studio`) |
+| `facebook_url` | No | Full URL (e.g. `https://facebook.com/studio`) |
+
+### cURL
+
+```bash
+curl -X PUT http://127.0.0.1:8000/api/auth/me/ \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "whatsapp_number": "9876543210",
+    "instagram_url": "https://instagram.com/mystudio",
+    "facebook_url": "https://facebook.com/mystudio"
+  }'
+```
+
+### Success response (`200`)
+
+Same `data.user` shape as GET above, with updated social fields and `updated_by` set to the current `user_id`.
+
+```json
+{
+  "status": "success",
+  "message": "Profile updated",
+  "details": "",
+  "data": {
+    "user": {
+      "user_id": "uuid-here",
+      "whatsapp_number": "+919876543210",
+      "instagram_url": "https://instagram.com/mystudio",
+      "facebook_url": "https://facebook.com/mystudio"
+    }
+  }
+}
+```
+
+### Fail response (`400`)
+
+```json
+{
+  "status": "fail",
+  "message": "Enter a valid 10-digit Indian mobile number.",
+  "details": "Enter a valid 10-digit Indian mobile number.",
   "data": null
 }
 ```

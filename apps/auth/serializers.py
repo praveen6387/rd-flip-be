@@ -132,3 +132,35 @@ class LoginSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+class UpdateSocialLinksSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "whatsapp_number",
+            "instagram_url",
+            "facebook_url",
+        )
+        extra_kwargs = {
+            "whatsapp_number": {"required": False, "allow_blank": True},
+            "instagram_url": {"required": False, "allow_blank": True},
+            "facebook_url": {"required": False, "allow_blank": True},
+        }
+
+    def validate_whatsapp_number(self, value):
+        number = (value or "").strip()
+        if not number:
+            return ""
+        return normalize_indian_phone(number)
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Provide at least one of whatsapp_number, instagram_url, facebook_url.")
+        return attrs
+
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+        if request and request.user and request.user.is_authenticated:
+            instance.updated_by = request.user.user_id
+        return super().update(instance, validated_data)

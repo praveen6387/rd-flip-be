@@ -8,6 +8,7 @@ from apps.auth.serializers import (
     LoginSerializer,
     SignupResponseSerializer,
     SignupSerializer,
+    UpdateSocialLinksSerializer,
     UserProfileSerializer,
 )
 from rd_flip_be.responses import api_success
@@ -82,4 +83,18 @@ class MeView(APIView):
         return api_success(
             message="Profile fetched",
             data={"user": UserProfileSerializer(request.user).data},
+        )
+
+    def put(self, request):
+        serializer = UpdateSocialLinksSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return api_success(
+            message="Profile updated",
+            data={"user": UserProfileSerializer(user).data},
         )

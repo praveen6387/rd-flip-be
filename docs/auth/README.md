@@ -52,6 +52,7 @@ Client → /api/auth/...
 | `POST` | `/api/auth/login/` | [login.md](./login.md) |
 | `POST` | `/api/auth/refresh/` | [refresh.md](./refresh.md) |
 | `GET` | `/api/auth/me/` | [me.md](./me.md) |
+| `PUT` | `/api/auth/me/` | [me.md](./me.md) (social links) |
 
 ### Health (quick)
 
@@ -70,4 +71,4 @@ curl http://127.0.0.1:8000/api/auth/health/
 
 ## Coming next
 
-- Profile update (WhatsApp / Instagram / Facebook)
+- Profile update (name, studio, dob)

@@ -23,7 +23,7 @@ Back to [Auth index](./README.md) · [Response format](./response-format.md)
 | `dob` | No | Date of birth (`YYYY-MM-DD`) |
 | `studio_name` | No | Studio name |
 
-**Not accepted on signup** (update API later):
+**Not accepted on signup** (use [Me PUT](./me.md)):
 
 - `whatsapp_number`
 - `instagram_url`
