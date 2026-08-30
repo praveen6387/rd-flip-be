@@ -131,3 +131,8 @@ SIMPLE_JWT = {
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
 }
+
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
+AWS_S3_REGION = env("AWS_S3_REGION", default="ap-south-1")
+AWS_S3_PRESIGN_EXPIRES = env.int("AWS_S3_PRESIGN_EXPIRES", default=3600)

@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.auth.helpers import normalize_indian_phone
 from apps.flipbooks.helpers import first_non_empty, unique_flip_id
+from apps.flipbooks.s3 import canonical_image_url, presign_image_url
 from rd_flip_be.models import Flipbook, FlipbookPage
 
 
@@ -11,8 +12,13 @@ class FlipbookImageSerializer(serializers.Serializer):
     image_url = serializers.URLField(max_length=2048)
     cover_type = serializers.ChoiceField(choices=FlipbookPage.COVER_TYPE_CHOICES)
 
+    def validate_image_url(self, value):
+        return canonical_image_url(value)
+
 
 class FlipbookPageResponseSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = FlipbookPage
         fields = (
@@ -22,6 +28,9 @@ class FlipbookPageResponseSerializer(serializers.ModelSerializer):
             "cover_type",
             "created_at",
         )
+
+    def get_image_url(self, obj):
+        return presign_image_url(obj.image_url)
 
 
 class FlipbookResponseSerializer(serializers.ModelSerializer):
@@ -47,7 +56,7 @@ class FlipbookResponseSerializer(serializers.ModelSerializer):
 
 
 class FlipbookListSerializer(serializers.ModelSerializer):
-    thumbnail = serializers.CharField(read_only=True, allow_blank=True, allow_null=True)
+    thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Flipbook
@@ -66,6 +75,9 @@ class FlipbookListSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+    def get_thumbnail(self, obj):
+        return presign_image_url(getattr(obj, "thumbnail", None))
 
 
 class CreateFlipbookSerializer(serializers.Serializer):

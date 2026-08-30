@@ -125,6 +125,10 @@ Django reads `.env` via `django-environ` in `rd_flip_be/settings.py`.
 | `CORS_ALLOW_ALL_ORIGINS` | Allow frontend origins in development |
 | `JWT_ACCESS_MINUTES` | Access token lifetime |
 | `JWT_REFRESH_DAYS` | Refresh token lifetime |
+| `AWS_ACCESS_KEY_ID` | IAM access key with `s3:GetObject` on the photos bucket |
+| `AWS_SECRET_ACCESS_KEY` | IAM secret key |
+| `AWS_S3_REGION` | Bucket region (e.g. `ap-south-1`) |
+| `AWS_S3_PRESIGN_EXPIRES` | Signed image URL lifetime in seconds (default `3600`) |
 
 Do **not** commit real production secrets. `.env` is gitignored.
 
@@ -140,7 +144,7 @@ Do **not** commit real production secrets. `.env` is gitignored.
 | psycopg2-binary | Postgres driver |
 | django-cors-headers | Frontend CORS |
 | djangorestframework-simplejwt | JWT auth |
-| pillow | Images (flipbook pages later) |
+| boto3 | S3 presigned image URLs |
 
 ---
 
@@ -265,6 +269,16 @@ DATABASE_PORT=...
 CORS_ALLOW_ALL_ORIGINS=True
 JWT_ACCESS_MINUTES=60
 JWT_REFRESH_DAYS=7
+
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_S3_REGION=ap-south-1
+AWS_S3_PRESIGN_EXPIRES=3600
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_REGION=ap-south-1
+AWS_S3_PRESIGN_EXPIRES=3600
 ```
 
 **Platform notes:**

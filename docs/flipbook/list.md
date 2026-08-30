@@ -4,6 +4,8 @@ Return the logged-in user's flipbooks. JWT required.
 
 Does **not** return all page images. Only the first page (`page_number` order) is sent as `thumbnail`.
 
+S3 objects are private. `thumbnail` in the response is a **signed URL** (expires after `AWS_S3_PRESIGN_EXPIRES` seconds, default 1 hour) so the browser can show the image without a 403.
+
 ```http
 GET /api/flipbooks/
 Authorization: Bearer <access_token>
@@ -61,7 +63,13 @@ curl http://127.0.0.1:8000/api/flipbooks/ \
 }
 ```
 
-`thumbnail` is `null` if the flipbook has no pages.
+`thumbnail` is `null` if the flipbook has no pages. For S3 photos it looks like:
+
+```text
+https://rd-flip-photos.s3.ap-south-1.amazonaws.com/flipbooks/.../front-001.jpg?X-Amz-Algorithm=...&X-Amz-Signature=...
+```
+
+Use that full URL in `<img src>`. Do not strip the query string.
 
 ---
 

@@ -50,6 +50,8 @@ Back to [Flipbook index](./README.md) · [Response format](../auth/response-form
 
 The backend generates a unique `flip_id` (10 characters, letters + numbers) and stores it with a unique index. It is not sent in the request.
 
+S3 page URLs are stored privately. API **responses** return time-limited signed `image_url` values the browser can load (no 403). The FE can still send the normal object URL on create.
+
 ---
 
 ## cURL (studio)
