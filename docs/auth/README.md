@@ -12,8 +12,9 @@ http://127.0.0.1:8000/api/auth/
 
 | Page | What it covers |
 |------|----------------|
-| [Signup](./signup.md) | Signup fields, rules, curl, responses |
-| [Login](./login.md) | Login fields, JWT tokens, curl, responses |
+| [Response format](./response-format.md) | Common success/fail JSON shape |
+| [Signup](./signup.md) | Signup + tokens (go to dashboard) |
+| [Login](./login.md) | Login + tokens |
 | [Refresh](./refresh.md) | Refresh access token + frontend flow |
 
 ## Code folder (`apps/auth/`)
@@ -57,7 +58,12 @@ curl http://127.0.0.1:8000/api/auth/health/
 ```
 
 ```json
-{"status": "ok"}
+{
+  "status": "success",
+  "message": "OK",
+  "details": "",
+  "data": { "status": "ok" }
+}
 ```
 
 ## Coming next

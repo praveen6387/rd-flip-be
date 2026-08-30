@@ -7,7 +7,7 @@ User = get_user_model()
 
 
 class SignupSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, min_length=8, max_length=128)
 
     class Meta:
@@ -26,26 +26,6 @@ class SignupSerializer(serializers.ModelSerializer):
             "dob": {"required": False, "allow_null": True},
         }
 
-    def resolve_signup_email(self, email: str, phone: str) -> str:
-        """
-        Use provided email if present.
-        Otherwise build email from phone: {10digit}@gmail.com
-        """
-        email = (email or "").strip().lower()
-        if email:
-            if User.objects.filter(email=email).exists():
-                raise serializers.ValidationError(
-                    "A user with this email already exists."
-                )
-            return email
-
-        email = f"{phone[-10:]}@gmail.com"
-        if User.objects.filter(email=email).exists():
-            raise serializers.ValidationError(
-                "Generated email from phone is already in use."
-            )
-        return email
-
     def validate_phone(self, value):
         phone = normalize_indian_phone(value)
         if User.objects.filter(phone=phone).exists():
@@ -53,8 +33,12 @@ class SignupSerializer(serializers.ModelSerializer):
         return phone
 
     def validate_email(self, value):
-        phone = normalize_indian_phone(self.initial_data.get("phone", ""))
-        return self.resolve_signup_email(value, phone)
+        email = (value or "").strip().lower()
+        if not email:
+            raise serializers.ValidationError("Email is required.")
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return email
 
     def create(self, validated_data):
         password = validated_data.pop("password")

@@ -1,6 +1,5 @@
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -10,13 +9,22 @@ from apps.auth.serializers import (
     SignupResponseSerializer,
     SignupSerializer,
 )
+from rd_flip_be.responses import api_success
+
+
+def _tokens_for_user(user) -> dict:
+    refresh = RefreshToken.for_user(user)
+    return {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+    }
 
 
 class HealthCheckView(APIView):
     permission_classes = (AllowAny,)
 
     def get(self, request):
-        return Response({"status": "ok"})
+        return api_success(message="OK", data={"status": "ok"})
 
 
 class SignupView(APIView):
@@ -26,12 +34,13 @@ class SignupView(APIView):
         serializer = SignupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(
-            {
-                "message": "Signup successful",
+        return api_success(
+            message="Signup successful",
+            data={
+                "tokens": _tokens_for_user(user),
                 "user": SignupResponseSerializer(user).data,
             },
-            status=status.HTTP_201_CREATED,
+            http_status=status.HTTP_201_CREATED,
         )
 
 
@@ -42,18 +51,12 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "message": "Login successful",
-                "tokens": {
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                },
+        return api_success(
+            message="Login successful",
+            data={
+                "tokens": _tokens_for_user(user),
                 "user": SignupResponseSerializer(user).data,
             },
-            status=status.HTTP_200_OK,
         )
 
 
@@ -68,10 +71,4 @@ class RefreshTokenView(APIView):
         if "refresh" in serializer.validated_data:
             tokens["refresh"] = serializer.validated_data["refresh"]
 
-        return Response(
-            {
-                "message": "Token refreshed",
-                "tokens": tokens,
-            },
-            status=status.HTTP_200_OK,
-        )
+        return api_success(message="Token refreshed", data={"tokens": tokens})

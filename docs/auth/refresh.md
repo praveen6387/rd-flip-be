@@ -7,7 +7,7 @@ POST /api/auth/refresh/
 Content-Type: application/json
 ```
 
-Back to [Auth index](./README.md)
+Back to [Auth index](./README.md) · [Response format](./response-format.md)
 
 ---
 
@@ -15,7 +15,7 @@ Back to [Auth index](./README.md)
 
 | Field | Required | Notes |
 |-------|----------|--------|
-| `refresh` | Yes | Refresh token from login (or previous refresh) |
+| `refresh` | Yes | Refresh token from login/signup (or previous refresh) |
 
 ---
 
@@ -25,7 +25,7 @@ Back to [Auth index](./README.md)
 curl -X POST http://127.0.0.1:8000/api/auth/refresh/ \
   -H "Content-Type: application/json" \
   -d '{
-    "refresh": "<refresh_token_from_login>"
+    "refresh": "<refresh_token>"
   }'
 ```
 
@@ -33,90 +33,89 @@ curl -X POST http://127.0.0.1:8000/api/auth/refresh/ \
 
 ## Success response (`200 OK`)
 
-Because `ROTATE_REFRESH_TOKENS=True` in settings, you usually get **both** a new access and a new refresh:
-
 ```json
 {
+  "status": "success",
   "message": "Token refreshed",
-  "tokens": {
-    "access": "eyJ...",
-    "refresh": "eyJ..."
+  "details": "",
+  "data": {
+    "tokens": {
+      "access": "eyJ...",
+      "refresh": "eyJ..."
+    }
   }
 }
 ```
 
-Store the new refresh token too (replace the old one).
+Store the new refresh token too (rotation is on).
 
 ---
 
-## Common errors (`401`)
-
-Invalid / expired refresh:
+## Fail response (`401`)
 
 ```json
 {
-  "detail": "Token is invalid or expired",
-  "code": "token_not_valid"
+  "status": "fail",
+  "message": "Token is invalid or expired",
+  "details": "Token is invalid or expired",
+  "data": null
 }
 ```
 
-If refresh fails, the frontend should send the user back to **login**.
+If refresh fails, clear tokens and go to **Login**.
 
 ---
 
 ## Frontend flow (when access expires)
 
-### Tokens after login
+### After signup or login
 
-Save both tokens (memory, secure storage, or httpOnly cookie — your choice):
-
-- `access` — send on every protected API call
-- `refresh` — only send to `/api/auth/refresh/`
+Save `data.tokens.access` and `data.tokens.refresh`.
 
 ### Normal API call
 
 ```text
-Request → Authorization: Bearer <access>
+Authorization: Bearer <access>
 ```
 
-- If `200` → use the response
-- If `401` (access expired / invalid) → try refresh (below)
+- success → done  
+- `401` → try refresh
 
 ### Refresh flow
 
 ```text
-1. Protected API returns 401 (access expired)
-2. Frontend calls POST /api/auth/refresh/ with { "refresh": "..." }
-3. If refresh OK:
-     - save new access
-     - save new refresh (because rotation is on)
-     - retry the original API with the new access
-4. If refresh fails (401):
+1. Protected API returns 401
+2. POST /api/auth/refresh/  { "refresh": "..." }
+3. If status === "success":
+     - save data.tokens.access
+     - save data.tokens.refresh (if present)
+     - retry original API once
+4. If status === "fail":
      - clear tokens
-     - redirect user to Login screen
+     - go to Login
 ```
 
-### Simple diagram
+### Diagram
 
 ```text
-[ Login ]
+[ Signup / Login ]
     │
     ▼
-store access + refresh
+store data.tokens.access + data.tokens.refresh
     │
     ▼
-[ Call API with access ] ──200──► success
+[ Call API with access ] ──success──► done
     │
    401
     │
     ▼
 [ POST /api/auth/refresh/ ]
     │
-    ├── success → update tokens → retry API
-    └── fail    → clear tokens → go to Login
+    ├── success → update tokens → retry API once
+    └── fail    → clear tokens → Login
 ```
 
-### Pseudocode (frontend)
+### Pseudocode
 
 ```js
 async function apiFetch(url, options = {}) {
@@ -131,39 +130,36 @@ async function apiFetch(url, options = {}) {
 
   if (res.status !== 401) return res;
 
-  // access likely expired → refresh
-  const refresh = getRefreshToken();
   const refreshRes = await fetch("http://127.0.0.1:8000/api/auth/refresh/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
+    body: JSON.stringify({ refresh: getRefreshToken() }),
   });
+  const body = await refreshRes.json();
 
-  if (!refreshRes.ok) {
+  if (body.status !== "success") {
     clearTokens();
     goToLogin();
     return refreshRes;
   }
 
-  const data = await refreshRes.json();
-  setAccessToken(data.tokens.access);
-  if (data.tokens.refresh) setRefreshToken(data.tokens.refresh);
+  setAccessToken(body.data.tokens.access);
+  if (body.data.tokens.refresh) setRefreshToken(body.data.tokens.refresh);
 
-  // retry original request once
   return fetch(url, {
     ...options,
     headers: {
       ...(options.headers || {}),
-      Authorization: `Bearer ${data.tokens.access}`,
+      Authorization: `Bearer ${body.data.tokens.access}`,
     },
   });
 }
 ```
 
-### Rules of thumb
+### Rules
 
-1. Never send `refresh` on normal APIs — only to `/api/auth/refresh/`
-2. Always send `access` as `Authorization: Bearer ...`
+1. Send `refresh` only to `/api/auth/refresh/`
+2. Send `access` as `Authorization: Bearer ...`
 3. On refresh success, replace stored tokens
-4. On refresh failure, force login again
-5. Don’t loop refresh forever — retry the original request **once**
+4. On refresh failure, force login
+5. Retry the original request **once** only

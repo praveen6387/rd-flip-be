@@ -1,13 +1,13 @@
 # Signup
 
-Create a new user account.
+Create a new user account and receive JWT tokens (same as login) so the app can open the dashboard immediately.
 
 ```http
 POST /api/auth/signup/
 Content-Type: application/json
 ```
 
-Back to [Auth index](./README.md)
+Back to [Auth index](./README.md) · [Response format](./response-format.md)
 
 ---
 
@@ -17,9 +17,9 @@ Back to [Auth index](./README.md)
 |-------|----------|--------|
 | `first_name` | Yes | User first name |
 | `last_name` | Yes | User last name |
+| `email` | Yes | Required at API level |
 | `phone` | Yes | Indian mobile. Saved as `+91…`. If already has `+91`, it is not doubled. |
 | `password` | Yes | Min 8 characters |
-| `email` | No | If empty/missing → `{10digitphone}@gmail.com` |
 | `dob` | No | Date of birth (`YYYY-MM-DD`) |
 | `studio_name` | No | Studio name |
 
@@ -35,42 +35,12 @@ Back to [Auth index](./README.md)
 
 ### Phone rules
 
-Accepted:
-
-- `9876543210`
-- `+919876543210`
-- `919876543210`
-- `09876543210`
-
-All stored as:
-
-```text
-+919876543210
-```
-
-Invalid numbers (wrong length / not starting with 6–9) are rejected.
+Accepted: `9876543210`, `+919876543210`, `919876543210`, `09876543210`  
+Stored as: `+919876543210`
 
 ---
 
 ## cURL
-
-### Without email / dob
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "first_name": "Praveen",
-    "last_name": "Maurya",
-    "phone": "9876543210",
-    "password": "secret123",
-    "studio_name": "My Studio"
-  }'
-```
-
-Email saved as: `9876543210@gmail.com`
-
-### With email and dob
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
@@ -92,35 +62,40 @@ curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
 
 ```json
 {
+  "status": "success",
   "message": "Signup successful",
-  "user": {
-    "user_id": "uuid-here",
-    "first_name": "Praveen",
-    "last_name": "Maurya",
-    "dob": "1995-08-15",
-    "email": "9876543210@gmail.com",
-    "phone": "+919876543210",
-    "studio_name": "My Studio",
-    "plan": "studio",
-    "created_at": "2026-08-29T08:00:00.000000Z"
+  "details": "",
+  "data": {
+    "tokens": {
+      "access": "eyJ...",
+      "refresh": "eyJ..."
+    },
+    "user": {
+      "user_id": "uuid-here",
+      "first_name": "Praveen",
+      "last_name": "Maurya",
+      "dob": "1995-08-15",
+      "email": "praveen@example.com",
+      "phone": "+919876543210",
+      "studio_name": "My Studio",
+      "plan": "studio",
+      "created_at": "2026-08-29T08:00:00.000000Z"
+    }
   }
 }
 ```
 
-If `dob` was not sent, it will be `null`.
+Frontend: save `data.tokens` and go to dashboard (no separate login needed).
 
 ---
 
-## Common errors (`400`)
+## Fail response (`400`)
 
 ```json
-{ "phone": ["A user with this phone already exists."] }
-```
-
-```json
-{ "phone": ["Enter a valid 10-digit Indian mobile number."] }
-```
-
-```json
-{ "email": ["A user with this email already exists."] }
+{
+  "status": "fail",
+  "message": "A user with this phone already exists.",
+  "details": "A user with this phone already exists.",
+  "data": null
+}
 ```
