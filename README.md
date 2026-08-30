@@ -24,4 +24,5 @@ python manage.py runserver
 | [Signup](./docs/auth/signup.md) | Signup + curl |
 | [Login](./docs/auth/login.md) | Login + curl |
 | [Refresh](./docs/auth/refresh.md) | Refresh token + frontend flow |
-| [Flipbook](./docs/flipbook/README.md) | Flipbook (later) |
+| [Flipbook](./docs/flipbook/README.md) | Flipbook APIs |
+| [Flipbook · Create](./docs/flipbook/create.md) | Create flipbook + curl |

@@ -54,7 +54,7 @@ rd-flip-be/
 │   │   ├── views.py
 │   │   ├── serializers.py
 │   │   └── migrations/
-│   └── flipbooks/              ← flipbook feature code (placeholder)
+│   └── flipbooks/              ← flipbook feature code
 ├── rd_flip_be/                 ← main project entry point
 │   ├── settings.py
 │   ├── urls.py
@@ -95,9 +95,7 @@ rd-flip-be/
 
 ### `apps/flipbooks/`
 
-Placeholder for flipbook feature code.
-
-**Models are not inside feature apps.** They live in `rd_flip_be/models.py`.
+Flipbook create API (`POST /api/flipbooks/`). Models stay in `rd_flip_be/models.py`.
 
 ### Root files
 

@@ -105,7 +105,7 @@ class FlipbookPage(models.Model):
     )
     page_number = models.PositiveIntegerField()
 
-    image_url = models.URLField(blank=True)
+    image_url = models.URLField(max_length=2048, blank=True)
     cover_type = models.CharField(max_length=20, choices=COVER_TYPE_CHOICES)
 
     created_at = models.DateTimeField(auto_now_add=True)
