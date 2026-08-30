@@ -38,6 +38,7 @@ class User(AbstractUser):
     total_credit = models.PositiveIntegerField(default=0)
     used_credit = models.PositiveIntegerField(default=0)
     left_credit = models.PositiveIntegerField(default=0)
+    expired_credit = models.PositiveIntegerField(default=0)
     credit_expire_date = models.DateField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

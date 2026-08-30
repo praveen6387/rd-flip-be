@@ -50,6 +50,7 @@ class SignupSerializer(serializers.ModelSerializer):
         validated_data["total_credit"] = 1
         validated_data["used_credit"] = 0
         validated_data["left_credit"] = 1
+        validated_data["expired_credit"] = 0
         validated_data["credit_expire_date"] = timezone.localdate() + timedelta(days=7)
         user = super().create(validated_data)
         user.set_password(password)
@@ -75,6 +76,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "total_credit",
             "used_credit",
             "left_credit",
+            "expired_credit",
             "credit_expire_date",
             "created_at",
             "updated_at",
@@ -96,6 +98,7 @@ class SignupResponseSerializer(UserProfileSerializer):
             "total_credit",
             "used_credit",
             "left_credit",
+            "expired_credit",
             "credit_expire_date",
             "created_at",
         )

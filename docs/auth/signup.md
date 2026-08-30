@@ -35,6 +35,7 @@ Back to [Auth index](./README.md) · [Response format](./response-format.md)
 - `total_credit` = `1` (1 free welcome credit)
 - `used_credit` = `0`
 - `left_credit` = `1`
+- `expired_credit` = `0`
 - `credit_expire_date` = signup date + 7 days
 
 ### Phone rules
@@ -86,6 +87,7 @@ curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
       "total_credit": 1,
       "used_credit": 0,
       "left_credit": 1,
+      "expired_credit": 0,
       "credit_expire_date": "2026-09-06",
       "created_at": "2026-08-29T08:00:00.000000Z"
     }
