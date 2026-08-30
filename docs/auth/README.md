@@ -16,6 +16,7 @@ http://127.0.0.1:8000/api/auth/
 | [Signup](./signup.md) | Signup + tokens (go to dashboard) |
 | [Login](./login.md) | Login + tokens |
 | [Refresh](./refresh.md) | Refresh access token + frontend flow |
+| [Me](./me.md) | Current user profile (JWT required) |
 
 ## Code folder (`apps/auth/`)
 
@@ -23,7 +24,7 @@ http://127.0.0.1:8000/api/auth/
 apps/auth/
 ├── apps.py            ← App config (label: user_auth)
 ├── helpers.py         ← Shared helpers (normalize_indian_phone)
-├── urls.py            ← Routes: health/, signup/, login/, refresh/
+├── urls.py            ← Routes: health/, signup/, login/, refresh/, me/
 ├── views.py           ← API views
 ├── serializers.py     ← Request validation
 └── migrations/
@@ -50,6 +51,7 @@ Client → /api/auth/...
 | `POST` | `/api/auth/signup/` | [signup.md](./signup.md) |
 | `POST` | `/api/auth/login/` | [login.md](./login.md) |
 | `POST` | `/api/auth/refresh/` | [refresh.md](./refresh.md) |
+| `GET` | `/api/auth/me/` | [me.md](./me.md) |
 
 ### Health (quick)
 

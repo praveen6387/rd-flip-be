@@ -34,8 +34,15 @@ class User(AbstractUser):
     instagram_url = models.URLField(blank=True)
     facebook_url = models.URLField(blank=True)
 
+    # credits
+    total_credit = models.PositiveIntegerField(default=0)
+    used_credit = models.PositiveIntegerField(default=0)
+    left_credit = models.PositiveIntegerField(default=0)
+    credit_expire_date = models.DateField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.UUIDField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]

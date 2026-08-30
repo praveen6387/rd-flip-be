@@ -57,6 +57,10 @@ curl -X POST http://127.0.0.1:8000/api/auth/login/ \
       "phone": "+919876543210",
       "studio_name": "My Studio",
       "plan": "studio",
+      "total_credit": 0,
+      "used_credit": 0,
+      "left_credit": 0,
+      "credit_expire_date": null,
       "created_at": "2026-08-29T08:00:00.000000Z"
     }
   }

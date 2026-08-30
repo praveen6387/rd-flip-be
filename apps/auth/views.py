@@ -1,5 +1,5 @@
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -8,6 +8,7 @@ from apps.auth.serializers import (
     LoginSerializer,
     SignupResponseSerializer,
     SignupSerializer,
+    UserProfileSerializer,
 )
 from rd_flip_be.responses import api_success
 
@@ -72,3 +73,13 @@ class RefreshTokenView(APIView):
             tokens["refresh"] = serializer.validated_data["refresh"]
 
         return api_success(message="Token refreshed", data={"tokens": tokens})
+
+
+class MeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        return api_success(
+            message="Profile fetched",
+            data={"user": UserProfileSerializer(request.user).data},
+        )
