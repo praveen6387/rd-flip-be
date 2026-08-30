@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.auth.helpers import normalize_indian_phone
-from apps.flipbooks.helpers import first_non_empty
+from apps.flipbooks.helpers import first_non_empty, unique_flip_id
 from rd_flip_be.models import Flipbook, FlipbookPage
 
 
@@ -31,6 +31,7 @@ class FlipbookResponseSerializer(serializers.ModelSerializer):
         model = Flipbook
         fields = (
             "id",
+            "flip_id",
             "title",
             "description",
             "date",
@@ -40,6 +41,28 @@ class FlipbookResponseSerializer(serializers.ModelSerializer):
             "facebook_url",
             "total_pages",
             "pages",
+            "created_at",
+            "updated_at",
+        )
+
+
+class FlipbookListSerializer(serializers.ModelSerializer):
+    thumbnail = serializers.CharField(read_only=True, allow_blank=True, allow_null=True)
+
+    class Meta:
+        model = Flipbook
+        fields = (
+            "id",
+            "flip_id",
+            "title",
+            "description",
+            "date",
+            "studio_name",
+            "whatsapp_number",
+            "instagram_url",
+            "facebook_url",
+            "total_pages",
+            "thumbnail",
             "created_at",
             "updated_at",
         )
@@ -133,6 +156,7 @@ class CreateFlipbookSerializer(serializers.Serializer):
                 instagram_url=branding["instagram_url"],
                 facebook_url=branding["facebook_url"],
                 total_pages=len(images),
+                flip_id=unique_flip_id(),
                 created_by=user.user_id,
                 updated_by=user.user_id,
             )

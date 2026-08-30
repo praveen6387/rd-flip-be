@@ -75,6 +75,7 @@ class Flipbook(models.Model):
     facebook_url = models.URLField(blank=True)
 
     total_pages = models.PositiveIntegerField(default=0)
+    flip_id = models.CharField(max_length=10, unique=True, db_index=True, editable=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -3,7 +3,7 @@
 Create a flipbook with ordered page images. JWT required.
 
 ```http
-POST /api/flipbooks/
+POST /api/flipbooks/create/
 Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
@@ -48,12 +48,14 @@ Back to [Flipbook index](./README.md) · [Response format](../auth/response-form
 
 `studio_name` and `whatsapp_number` must end up non-empty (from payload and/or profile). Instagram and Facebook may be empty.
 
+The backend generates a unique `flip_id` (10 characters, letters + numbers) and stores it with a unique index. It is not sent in the request.
+
 ---
 
 ## cURL (studio)
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/flipbooks/ \
+curl -X POST http://127.0.0.1:8000/api/flipbooks/create/ \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -71,7 +73,7 @@ curl -X POST http://127.0.0.1:8000/api/flipbooks/ \
 ## cURL (lab — optional branding in payload)
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/flipbooks/ \
+curl -X POST http://127.0.0.1:8000/api/flipbooks/create/ \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -100,6 +102,7 @@ curl -X POST http://127.0.0.1:8000/api/flipbooks/ \
   "data": {
     "flipbook": {
       "id": 1,
+      "flip_id": "aB3kP9xQ2m",
       "title": "Riya weds Arjun",
       "description": "Wedding highlight",
       "date": "2026-08-30",

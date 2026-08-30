@@ -1,7 +1,8 @@
 from django.urls import path
 
-from apps.flipbooks.views import FlipbookCreateView
+from apps.flipbooks.views import FlipbookCreateView, FlipbookListView
 
 urlpatterns = [
-    path("", FlipbookCreateView.as_view(), name="flipbook-create"),
+    path("", FlipbookListView.as_view(), name="flipbook-list"),
+    path("create/", FlipbookCreateView.as_view(), name="flipbook-create"),
 ]

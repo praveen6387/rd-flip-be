@@ -95,7 +95,7 @@ rd-flip-be/
 
 ### `apps/flipbooks/`
 
-Flipbook create API (`POST /api/flipbooks/`). Models stay in `rd_flip_be/models.py`.
+Flipbook APIs (`GET /api/flipbooks/`, `POST /api/flipbooks/create/`). Models stay in `rd_flip_be/models.py`.
 
 ### Root files
 

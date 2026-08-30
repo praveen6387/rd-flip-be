@@ -11,12 +11,14 @@ http://127.0.0.1:8000/api/flipbooks/
 | Page | What it covers |
 |------|----------------|
 | [Create](./create.md) | Create flipbook + pages (JWT required) |
+| [List](./list.md) | List current user's flipbooks (thumbnail only) |
 
 ## APIs overview
 
 | Method | Path | Doc |
 |--------|------|-----|
-| `POST` | `/api/flipbooks/` | [create.md](./create.md) |
+| `GET` | `/api/flipbooks/` | [list.md](./list.md) |
+| `POST` | `/api/flipbooks/create/` | [create.md](./create.md) |
 
 ## Code folder (`apps/flipbooks/`)
 

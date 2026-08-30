@@ -26,3 +26,4 @@ python manage.py runserver
 | [Refresh](./docs/auth/refresh.md) | Refresh token + frontend flow |
 | [Flipbook](./docs/flipbook/README.md) | Flipbook APIs |
 | [Flipbook · Create](./docs/flipbook/create.md) | Create flipbook + curl |
+| [Flipbook · List](./docs/flipbook/list.md) | List flipbooks + curl |
