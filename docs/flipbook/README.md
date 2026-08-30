@@ -12,6 +12,7 @@ http://127.0.0.1:8000/api/flipbooks/
 |------|----------------|
 | [Create](./create.md) | Create flipbook + pages (JWT required) |
 | [List](./list.md) | List current user's flipbooks (thumbnail only) |
+| [Public](./public.md) | Get one flipbook by `flip_id` (no JWT) |
 
 ## APIs overview
 
@@ -19,6 +20,7 @@ http://127.0.0.1:8000/api/flipbooks/
 |--------|------|-----|
 | `GET` | `/api/flipbooks/` | [list.md](./list.md) |
 | `POST` | `/api/flipbooks/create/` | [create.md](./create.md) |
+| `GET` | `/api/flipbooks/<flip_id>/` | [public.md](./public.md) |
 
 ## Code folder (`apps/flipbooks/`)
 

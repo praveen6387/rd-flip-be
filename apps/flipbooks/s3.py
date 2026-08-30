@@ -45,24 +45,33 @@ def _s3_client():
     return boto3.client("s3", **kwargs)
 
 
-def presign_image_url(url: str | None) -> str | None:
+def presign_image_urls(urls: list[str | None]) -> list[str | None]:
     """
-    Turn a private S3 object URL into a time-limited GET URL the browser can load.
+    Sign S3 image URLs (local HMAC, no S3 HTTP).
+    For one URL, pass [url] and use the 0th result.
     Non-S3 URLs are returned unchanged.
     """
-    if not url:
-        return url
-
-    s3_parts = parse_s3_url(url)
-    if s3_parts is None:
-        return url
-
-    bucket, key = s3_parts
-    try:
-        return _s3_client().generate_presigned_url(
-            "get_object",
-            Params={"Bucket": bucket, "Key": key},
-            ExpiresIn=settings.AWS_S3_PRESIGN_EXPIRES,
-        )
-    except Exception:
-        return canonical_image_url(url)
+    client = None
+    signed: list[str | None] = []
+    for url in urls:
+        if not url:
+            signed.append(url)
+            continue
+        s3_parts = parse_s3_url(url)
+        if s3_parts is None:
+            signed.append(url)
+            continue
+        bucket, key = s3_parts
+        try:
+            if client is None:
+                client = _s3_client()
+            signed.append(
+                client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": bucket, "Key": key},
+                    ExpiresIn=settings.AWS_S3_PRESIGN_EXPIRES,
+                )
+            )
+        except Exception:
+            signed.append(canonical_image_url(url))
+    return signed

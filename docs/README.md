@@ -12,3 +12,4 @@
 | [Flipbook](./flipbook/README.md) | Flipbook overview |
 | [Flipbook · Create](./flipbook/create.md) | Create flipbook API |
 | [Flipbook · List](./flipbook/list.md) | List current user's flipbooks |
+| [Flipbook · Public](./flipbook/public.md) | Public flipbook by `flip_id` |

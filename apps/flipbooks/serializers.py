@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.auth.helpers import normalize_indian_phone
 from apps.flipbooks.helpers import first_non_empty, unique_flip_id
-from apps.flipbooks.s3 import canonical_image_url, presign_image_url
+from apps.flipbooks.s3 import canonical_image_url, presign_image_urls
 from rd_flip_be.models import Flipbook, FlipbookPage
 
 
@@ -30,7 +30,7 @@ class FlipbookPageResponseSerializer(serializers.ModelSerializer):
         )
 
     def get_image_url(self, obj):
-        return presign_image_url(obj.image_url)
+        return presign_image_urls([obj.image_url])[0]
 
 
 class FlipbookResponseSerializer(serializers.ModelSerializer):
@@ -77,7 +77,38 @@ class FlipbookListSerializer(serializers.ModelSerializer):
         )
 
     def get_thumbnail(self, obj):
-        return presign_image_url(getattr(obj, "thumbnail", None))
+        return presign_image_urls([getattr(obj, "thumbnail", None)])[0]
+
+
+class PublicFlipbookSerializer(serializers.ModelSerializer):
+    pages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Flipbook
+        fields = (
+            "flip_id",
+            "title",
+            "description",
+            "date",
+            "studio_name",
+            "whatsapp_number",
+            "instagram_url",
+            "facebook_url",
+            "total_pages",
+            "pages",
+        )
+
+    def get_pages(self, obj):
+        pages = list(obj.pages.all())
+        signed_urls = presign_image_urls([page.image_url for page in pages])
+        return [
+            {
+                "page_number": page.page_number,
+                "image_url": signed_urls[index],
+                "cover_type": page.cover_type,
+            }
+            for index, page in enumerate(pages)
+        ]
 
 
 class CreateFlipbookSerializer(serializers.Serializer):
