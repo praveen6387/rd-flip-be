@@ -235,6 +235,50 @@ python manage.py createsuperuser
 
 ---
 
+## Deploy anywhere (production)
+
+This project uses **standard, platform-agnostic** pieces — no vendor-specific config files.
+
+| File / tool | Purpose |
+|-------------|---------|
+| `Procfile` | Start command (Railway, Heroku, Render, Fly.io, etc.) |
+| `pyproject.toml` | Dependencies including **gunicorn** |
+| `.env` / host env vars | Same variables as local (see env table above) |
+
+**Start command** (also in `Procfile`):
+
+```bash
+python manage.py migrate && gunicorn rd_flip_be.wsgi:application --bind 0.0.0.0:$PORT
+```
+
+Set these env vars on your host:
+
+```env
+SECRET_KEY=<long-random-secret>
+DEBUG=False
+ALLOWED_HOSTS=your-domain.com
+
+DATABASE_NAME=...
+DATABASE_USER=...
+DATABASE_PASSWORD=...
+DATABASE_HOST=...
+DATABASE_PORT=...
+
+CORS_ALLOW_ALL_ORIGINS=True
+JWT_ACCESS_MINUTES=60
+JWT_REFRESH_DAYS=7
+```
+
+**Platform notes:**
+
+- **Railway / Render / Heroku** — point the service at this repo; they read `Procfile` automatically. Use the platform’s Postgres and map `DATABASE_*` from its connection vars (or `${{Postgres.*}}` references on Railway).
+- **VPS (Ubuntu, etc.)** — `poetry install`, set env vars, run the command above (often behind nginx + systemd).
+- **Docker** — use the same gunicorn command in your `CMD`; add a `Dockerfile` when you need it.
+
+Local dev still uses `python manage.py runserver`. Production uses **gunicorn** only.
+
+---
+
 ## Summary
 
 - This repo is the RD Flip **backend**
