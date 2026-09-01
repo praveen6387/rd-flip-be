@@ -1,10 +1,18 @@
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 
 from apps.auth.helpers import normalize_indian_phone
-from apps.flipbooks.helpers import first_non_empty, unique_flip_id
+from apps.flipbooks.helpers import (
+    deduct_user_credit,
+    first_non_empty,
+    unique_flip_id,
+    validate_user_credits,
+)
 from apps.flipbooks.s3 import canonical_image_url, presign_image_urls
 from rd_flip_be.models import Flipbook, FlipbookPage
+
+User = get_user_model()
 
 
 class FlipbookImageSerializer(serializers.Serializer):
@@ -184,11 +192,13 @@ class CreateFlipbookSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         request = self.context["request"]
-        user = request.user
         images = sorted(validated_data["images"], key=lambda item: item["page_number"])
-        branding = self._resolve_branding(user, validated_data)
+        branding = self._resolve_branding(request.user, validated_data)
 
         with transaction.atomic():
+            user = User.objects.select_for_update().get(pk=request.user.pk)
+            validate_user_credits(user)
+
             flipbook = Flipbook.objects.create(
                 user=user,
                 title=validated_data["title"].strip(),
@@ -216,5 +226,6 @@ class CreateFlipbookSerializer(serializers.Serializer):
                     for item in images
                 ]
             )
+            deduct_user_credit(user)
 
         return flipbook

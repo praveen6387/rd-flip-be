@@ -52,6 +52,14 @@ The backend generates a unique `flip_id` (10 characters, letters + numbers) and 
 
 S3 page URLs are stored privately. API **responses** return time-limited signed `image_url` values the browser can load (no 403). The FE can still send the normal object URL on create.
 
+### Credits
+
+Creating a flipbook costs **1 credit** from the logged-in user's account:
+
+- `left_credit` must be ≥ 1
+- `credit_expire_date` must not be in the past (if set)
+- On success: `used_credit` +1, `left_credit` -1
+
 ---
 
 ## cURL (studio)
@@ -146,6 +154,30 @@ curl -X POST http://127.0.0.1:8000/api/flipbooks/create/ \
 ---
 
 ## Fail response (`400`)
+
+No credits:
+
+```json
+{
+  "status": "fail",
+  "message": "You do not have enough credits to create a flipbook.",
+  "details": "You do not have enough credits to create a flipbook.",
+  "data": null
+}
+```
+
+Credits expired:
+
+```json
+{
+  "status": "fail",
+  "message": "Your credits have expired. Please renew to create a flipbook.",
+  "details": "Your credits have expired. Please renew to create a flipbook.",
+  "data": null
+}
+```
+
+Other validation (example):
 
 ```json
 {
