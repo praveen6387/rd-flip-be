@@ -56,6 +56,215 @@ class User(AbstractUser):
         return self.email
 
 
+class Plan(models.Model):
+    PLAN_TYPE_CHOICES = [
+        ("studio", "Studio"),
+        ("lab", "Lab"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=100)
+    plan_type = models.CharField(max_length=20, choices=PLAN_TYPE_CHOICES)
+
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    credit = models.PositiveIntegerField()
+    validity_days = models.PositiveIntegerField()
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.UUIDField(null=True, blank=True)
+    updated_by = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        db_table = "plans"
+        ordering = ["price"]
+
+    def __str__(self):
+        return f"{self.name} - {self.plan_type}"
+
+
+class UserPlan(models.Model):
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("expired", "Expired"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="user_plans",
+    )
+
+    plan = models.ForeignKey(
+        Plan,
+        on_delete=models.PROTECT,
+        related_name="user_plans",
+    )
+
+    start_date = models.DateTimeField()
+    expiry_date = models.DateTimeField()
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="active",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.UUIDField(null=True, blank=True)
+    updated_by = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        db_table = "user_plans"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.plan.name}"
+
+
+class Order(models.Model):
+    PAYMENT_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("failed", "Failed"),
+        ("cancelled", "Cancelled"),
+        ("refunded", "Refunded"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+
+    order_name = models.CharField(
+        max_length=20,
+        unique=True,
+        editable=False,
+        db_index=True,
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="orders",
+    )
+
+    plan = models.ForeignKey(
+        Plan,
+        on_delete=models.PROTECT,
+        related_name="orders",
+    )
+
+    user_plan = models.ForeignKey(
+        UserPlan,
+        on_delete=models.PROTECT,
+        related_name="orders",
+        null=True,
+        blank=True,
+    )
+
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default="pending",
+    )
+
+    gateway_order_id = models.CharField(
+        max_length=255,
+        blank=True,
+        db_index=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+    created_by = models.UUIDField(
+        null=True,
+        blank=True,
+    )
+    updated_by = models.UUIDField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "orders"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.order_name
+
+
+class PaymentTransaction(models.Model):
+    PAYMENT_STATUS_CHOICES = [
+        ("success", "Success"),
+        ("failed", "Failed"),
+        ("refunded", "Refunded"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.PROTECT,
+        related_name="payment_transactions",
+    )
+
+    gateway_payment_id = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+    )
+
+    gateway_signature = models.TextField(
+        blank=True,
+    )
+
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+    )
+
+    payment_method = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    gateway_response = models.JSONField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        db_table = "payment_transactions"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.gateway_payment_id
+
+
 class Flipbook(models.Model):
     id = models.AutoField(primary_key=True)
 
@@ -121,3 +330,70 @@ class FlipbookPage(models.Model):
 
     def __str__(self) -> str:
         return f"{self.flipbook.title} — page {self.page_number}"
+
+
+class CreditTransaction(models.Model):
+    CREDIT_TYPE_CHOICES = [
+        ("free", "Free"),
+        ("purchase", "Purchase"),
+        ("usage", "Usage"),
+        ("expiry", "Expiry"),
+        ("refund", "Refund"),
+        ("adjustment", "Adjustment"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="credit_transactions",
+    )
+
+    credit_type = models.CharField(
+        max_length=20,
+        choices=CREDIT_TYPE_CHOICES,
+    )
+
+    credits = models.IntegerField()
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.PROTECT,
+        related_name="credit_transactions",
+        null=True,
+        blank=True,
+    )
+
+    flipbook = models.ForeignKey(
+        Flipbook,
+        on_delete=models.PROTECT,
+        related_name="credit_transactions",
+        null=True,
+        blank=True,
+    )
+
+    expiry_date = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    created_by = models.UUIDField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "credit_transactions"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.credits} credits"

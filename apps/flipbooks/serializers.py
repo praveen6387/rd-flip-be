@@ -226,6 +226,6 @@ class CreateFlipbookSerializer(serializers.Serializer):
                     for item in images
                 ]
             )
-            deduct_user_credit(user)
+            deduct_user_credit(user, flipbook=flipbook)
 
         return flipbook

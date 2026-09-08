@@ -2,6 +2,7 @@ import secrets
 import string
 
 from django.utils import timezone
+from rd_flip_be.credits import create_credit_transaction
 from rest_framework import serializers
 
 FLIP_ID_ALPHABET = string.ascii_letters + string.digits
@@ -37,18 +38,27 @@ def validate_user_credits(user) -> None:
     today = timezone.localdate()
 
     if user.credit_expire_date and today > user.credit_expire_date:
-        raise serializers.ValidationError(
-            "Your credits have expired. Please renew to create a flipbook."
-        )
+        raise serializers.ValidationError("Your credits have expired. Please renew to create a flipbook.")
 
     if (user.left_credit or 0) < 1:
-        raise serializers.ValidationError(
-            "You do not have enough credits to create a flipbook."
-        )
+        raise serializers.ValidationError("You do not have enough credits to create a flipbook.")
 
 
-def deduct_user_credit(user) -> None:
+def deduct_user_credit(user, flipbook=None) -> None:
+
     user.used_credit = (user.used_credit or 0) + 1
     user.left_credit = (user.left_credit or 0) - 1
     user.updated_by = user.user_id
     user.save(update_fields=["used_credit", "left_credit", "updated_by", "updated_at"])
+    create_credit_transaction(
+        user=user,
+        credit_type="usage",
+        credits=-1,
+        flipbook=flipbook,
+        description=(
+            f"Credit used to create flipbook {flipbook.flip_id}"
+            if flipbook is not None
+            else "Credit used to create flipbook"
+        ),
+        created_by=user.user_id,
+    )

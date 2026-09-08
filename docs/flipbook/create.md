@@ -59,6 +59,7 @@ Creating a flipbook costs **1 credit** from the logged-in user's account:
 - `left_credit` must be ≥ 1
 - `credit_expire_date` must not be in the past (if set)
 - On success: `used_credit` +1, `left_credit` -1
+- Also creates a `CreditTransaction` with `credit_type=usage`, `credits=-1`, linked to the flipbook
 
 ---
 

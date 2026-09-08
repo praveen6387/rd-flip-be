@@ -13,3 +13,5 @@
 | [Flipbook · Create](./flipbook/create.md) | Create flipbook API |
 | [Flipbook · List](./flipbook/list.md) | List current user's flipbooks |
 | [Flipbook · Public](./flipbook/public.md) | Public flipbook by `flip_id` |
+| [Plans](./plans/README.md) | Plans overview |
+| [Plans · List](./plans/list.md) | List active plans API |

@@ -28,3 +28,5 @@ python manage.py runserver
 | [Flipbook · Create](./docs/flipbook/create.md) | Create flipbook + curl |
 | [Flipbook · List](./docs/flipbook/list.md) | List flipbooks + curl |
 | [Flipbook · Public](./docs/flipbook/public.md) | Public flipbook by `flip_id` |
+| [Plans](./docs/plans/README.md) | Plans APIs |
+| [Plans · List](./docs/plans/list.md) | List plans + curl |

@@ -37,6 +37,7 @@ Back to [Auth index](./README.md) · [Response format](./response-format.md)
 - `left_credit` = `1`
 - `expired_credit` = `0`
 - `credit_expire_date` = signup date + 7 days
+- creates a `CreditTransaction` with `credit_type=free`, `credits=1`
 
 ### Phone rules
 

@@ -5,4 +5,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("apps.auth.urls")),
     path("api/flipbooks/", include("apps.flipbooks.urls")),
+    path("api/plans/", include("apps.plans.urls")),
 ]

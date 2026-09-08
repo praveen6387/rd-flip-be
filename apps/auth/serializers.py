@@ -1,10 +1,12 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
 from apps.auth.helpers import normalize_indian_phone
+from rd_flip_be.credits import create_credit_transaction
 
 User = get_user_model()
 
@@ -45,16 +47,27 @@ class SignupSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
+        credit_expire_date = timezone.localdate() + timedelta(days=7)
         validated_data["plan"] = "studio"
         validated_data["username"] = validated_data["email"]
         validated_data["total_credit"] = 1
         validated_data["used_credit"] = 0
         validated_data["left_credit"] = 1
         validated_data["expired_credit"] = 0
-        validated_data["credit_expire_date"] = timezone.localdate() + timedelta(days=7)
-        user = super().create(validated_data)
-        user.set_password(password)
-        user.save()
+        validated_data["credit_expire_date"] = credit_expire_date
+
+        with transaction.atomic():
+            user = super().create(validated_data)
+            user.set_password(password)
+            user.save()
+            create_credit_transaction(
+                user=user,
+                credit_type="free",
+                credits=1,
+                expiry_date=credit_expire_date,
+                description="Welcome free credit on signup",
+                created_by=user.user_id,
+            )
         return user
 
 

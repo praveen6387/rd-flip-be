@@ -39,6 +39,7 @@ LOCAL_APPS = [
     "rd_flip_be",
     "apps.auth",
     "apps.flipbooks",
+    "apps.plans",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
