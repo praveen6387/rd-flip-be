@@ -6,4 +6,6 @@ urlpatterns = [
     path("api/auth/", include("apps.auth.urls")),
     path("api/flipbooks/", include("apps.flipbooks.urls")),
     path("api/plans/", include("apps.plans.urls")),
+    path("api/orders/", include("apps.orders.urls")),
+    path("api/payments/", include("apps.payments.urls")),
 ]

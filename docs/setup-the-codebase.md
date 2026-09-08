@@ -129,6 +129,8 @@ Django reads `.env` via `django-environ` in `rd_flip_be/settings.py`.
 | `AWS_SECRET_ACCESS_KEY` | IAM secret key |
 | `AWS_S3_REGION` | Bucket region (e.g. `ap-south-1`) |
 | `AWS_S3_PRESIGN_EXPIRES` | Signed image URL lifetime in seconds (default `3600`) |
+| `RAZORPAY_KEY_ID` | Razorpay key id (use `rzp_test_…` in test mode) |
+| `RAZORPAY_KEY_SECRET` | Razorpay key secret |
 
 Do **not** commit real production secrets. `.env` is gitignored.
 
@@ -145,6 +147,7 @@ Do **not** commit real production secrets. `.env` is gitignored.
 | django-cors-headers | Frontend CORS |
 | djangorestframework-simplejwt | JWT auth |
 | boto3 | S3 presigned image URLs |
+| razorpay | Razorpay payment orders (test/live) |
 
 ---
 
@@ -275,10 +278,8 @@ AWS_SECRET_ACCESS_KEY=...
 AWS_S3_REGION=ap-south-1
 AWS_S3_PRESIGN_EXPIRES=3600
 
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_S3_REGION=ap-south-1
-AWS_S3_PRESIGN_EXPIRES=3600
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxx
+RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxx
 ```
 
 **Platform notes:**

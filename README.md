@@ -30,3 +30,7 @@ python manage.py runserver
 | [Flipbook · Public](./docs/flipbook/public.md) | Public flipbook by `flip_id` |
 | [Plans](./docs/plans/README.md) | Plans APIs |
 | [Plans · List](./docs/plans/list.md) | List plans + curl |
+| [Orders](./docs/orders/README.md) | Orders APIs |
+| [Orders · Create](./docs/orders/create.md) | Create order + curl |
+| [Payments](./docs/payments/README.md) | Payments APIs |
+| [Payments · Verify](./docs/payments/verify.md) | Verify payment + curl |

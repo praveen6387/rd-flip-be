@@ -15,3 +15,7 @@
 | [Flipbook · Public](./flipbook/public.md) | Public flipbook by `flip_id` |
 | [Plans](./plans/README.md) | Plans overview |
 | [Plans · List](./plans/list.md) | List active plans API |
+| [Orders](./orders/README.md) | Orders overview |
+| [Orders · Create](./orders/create.md) | Create order API |
+| [Payments](./payments/README.md) | Payments overview |
+| [Payments · Verify](./payments/verify.md) | Verify Razorpay payment |
