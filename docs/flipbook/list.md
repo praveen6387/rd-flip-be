@@ -55,6 +55,7 @@ curl http://127.0.0.1:8000/api/flipbooks/ \
         "facebook_url": "https://facebook.com/mystudio",
         "total_pages": 3,
         "thumbnail": "https://cdn.example.com/front.jpg",
+        "active_until": "2026-11-28T12:00:00.000000Z",
         "created_at": "2026-08-30T12:00:00.000000Z",
         "updated_at": "2026-08-30T12:00:00.000000Z"
       }
@@ -70,6 +71,8 @@ https://rd-flip-photos.s3.ap-south-1.amazonaws.com/flipbooks/.../front-001.jpg?X
 ```
 
 Use that full URL in `<img src>`. Do not strip the query string.
+
+`active_until` is the free-period expiry datetime, or `null` when the flipbook has no fixed expiry (e.g. after a paid plan / recharge).
 
 ---
 

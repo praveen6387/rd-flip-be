@@ -44,6 +44,7 @@ curl http://127.0.0.1:8000/api/flipbooks/aB3kP9xQ2m/
       "instagram_url": "https://instagram.com/mystudio",
       "facebook_url": "https://facebook.com/mystudio",
       "total_pages": 3,
+      "active_until": "2026-11-28T12:00:00.000000Z",
       "pages": [
         {
           "page_number": 1,
@@ -66,7 +67,39 @@ curl http://127.0.0.1:8000/api/flipbooks/aB3kP9xQ2m/
 }
 ```
 
+`active_until` is the free-period expiry datetime, or `null` when the flipbook has no fixed expiry (e.g. after a paid plan / recharge).
+
 Use each `image_url` as-is in `<img src>` (keep the query string). Signed URLs expire after `AWS_S3_PRESIGN_EXPIRES` seconds (default 1 hour).
+
+---
+
+## Expired flipbook (`200`, body `status: "fail"`)
+
+When `active_until` is set and in the past, HTTP stays **200** but the body uses `status: "fail"`. Same flipbook fields as success, but **without** `pages`.
+
+```json
+{
+  "status": "fail",
+  "message": "This flipbook has expired.",
+  "details": "This flipbook is no longer available.",
+  "data": {
+    "flipbook": {
+      "flip_id": "aB3kP9xQ2m",
+      "title": "Riya weds Arjun",
+      "description": "Wedding highlight",
+      "date": "2026-08-30",
+      "studio_name": "My Studio",
+      "whatsapp_number": "+919876543210",
+      "instagram_url": "https://instagram.com/mystudio",
+      "facebook_url": "https://facebook.com/mystudio",
+      "total_pages": 3,
+      "active_until": "2026-11-28T12:00:00.000000Z"
+    }
+  }
+}
+```
+
+Frontend: treat `body.status === "fail"` as expired even when HTTP is 200.
 
 ---
 

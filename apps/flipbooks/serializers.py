@@ -81,6 +81,7 @@ class FlipbookListSerializer(serializers.ModelSerializer):
             "facebook_url",
             "total_pages",
             "thumbnail",
+            "active_until",
             "created_at",
             "updated_at",
         )
@@ -104,10 +105,13 @@ class PublicFlipbookSerializer(serializers.ModelSerializer):
             "instagram_url",
             "facebook_url",
             "total_pages",
+            "active_until",
             "pages",
         )
 
     def get_pages(self, obj):
+        if self.context.get("omit_pages"):
+            return []
         pages = list(obj.pages.all())
         signed_urls = presign_image_urls([page.image_url for page in pages])
         return [

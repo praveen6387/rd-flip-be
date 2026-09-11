@@ -1,4 +1,5 @@
 from django.db.models import OuterRef, Prefetch, Subquery
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -84,6 +85,7 @@ class PublicFlipbookView(APIView):
                 "instagram_url",
                 "facebook_url",
                 "total_pages",
+                "active_until",
             )
             .prefetch_related(Prefetch("pages", queryset=pages_qs))
             .first()
@@ -93,6 +95,18 @@ class PublicFlipbookView(APIView):
                 message="Flipbook not found.",
                 details="Flipbook not found.",
                 http_status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if flipbook.active_until and timezone.now() > flipbook.active_until:
+            flipbook_data = PublicFlipbookSerializer(
+                flipbook, context={"omit_pages": True}
+            ).data
+            flipbook_data.pop("pages", None)
+            return api_fail(
+                message="This flipbook has expired.",
+                details="This flipbook is no longer available.",
+                data={"flipbook": flipbook_data},
+                http_status=status.HTTP_200_OK,
             )
 
         return api_success(
