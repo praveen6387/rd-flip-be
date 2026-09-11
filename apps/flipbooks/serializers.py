@@ -6,6 +6,7 @@ from apps.auth.helpers import normalize_indian_phone
 from apps.flipbooks.helpers import (
     deduct_user_credit,
     first_non_empty,
+    resolve_active_until,
     unique_flip_id,
     validate_user_credits,
 )
@@ -210,6 +211,7 @@ class CreateFlipbookSerializer(serializers.Serializer):
                 facebook_url=branding["facebook_url"],
                 total_pages=len(images),
                 flip_id=unique_flip_id(),
+                active_until=resolve_active_until(user),
                 created_by=user.user_id,
                 updated_by=user.user_id,
             )

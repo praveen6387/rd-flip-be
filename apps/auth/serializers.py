@@ -50,9 +50,9 @@ class SignupSerializer(serializers.ModelSerializer):
         credit_expire_date = timezone.localdate() + timedelta(days=7)
         validated_data["plan"] = "studio"
         validated_data["username"] = validated_data["email"]
-        validated_data["total_credit"] = 1
+        validated_data["total_credit"] = 10
         validated_data["used_credit"] = 0
-        validated_data["left_credit"] = 1
+        validated_data["left_credit"] = 10
         validated_data["expired_credit"] = 0
         validated_data["credit_expire_date"] = credit_expire_date
 
@@ -63,9 +63,9 @@ class SignupSerializer(serializers.ModelSerializer):
             create_credit_transaction(
                 user=user,
                 credit_type="free",
-                credits=1,
+                credits=10,
                 expiry_date=credit_expire_date,
-                description="Welcome free credit on signup",
+                description="Welcome free credits on signup",
                 created_by=user.user_id,
             )
         return user

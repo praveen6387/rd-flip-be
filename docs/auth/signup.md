@@ -32,12 +32,12 @@ Back to [Auth index](./README.md) · [Response format](./response-format.md)
 **Always set by backend:**
 
 - `plan` = `studio`
-- `total_credit` = `1` (1 free welcome credit)
+- `total_credit` = `10` (10 free welcome credits)
 - `used_credit` = `0`
-- `left_credit` = `1`
+- `left_credit` = `10`
 - `expired_credit` = `0`
 - `credit_expire_date` = signup date + 7 days
-- creates a `CreditTransaction` with `credit_type=free`, `credits=1`
+- creates a `CreditTransaction` with `credit_type=free`, `credits=10`
 
 ### Phone rules
 
@@ -85,9 +85,9 @@ curl -X POST http://127.0.0.1:8000/api/auth/signup/ \
       "phone": "+919876543210",
       "studio_name": "My Studio",
       "plan": "studio",
-      "total_credit": 1,
+      "total_credit": 10,
       "used_credit": 0,
-      "left_credit": 1,
+      "left_credit": 10,
       "expired_credit": 0,
       "credit_expire_date": "2026-09-06",
       "created_at": "2026-08-29T08:00:00.000000Z"

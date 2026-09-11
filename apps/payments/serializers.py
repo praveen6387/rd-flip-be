@@ -7,7 +7,7 @@ from rest_framework import serializers
 
 from apps.payments.services.credit_allocation import allocate_purchase_credits
 from apps.payments.services.razorpay_service import verify_razorpay_signature
-from rd_flip_be.models import Order, PaymentTransaction, UserPlan
+from rd_flip_be.models import Flipbook, Order, PaymentTransaction, UserPlan
 
 User = get_user_model()
 
@@ -113,6 +113,13 @@ class VerifyPaymentSerializer(serializers.Serializer):
                 plan=plan,
                 order=order,
                 user_plan=user_plan,
+            )
+
+            # paid/recharge removes free-period expiry from existing flipbooks
+            Flipbook.objects.filter(user=user, active_until__isnull=False).update(
+                active_until=None,
+                updated_at=now,
+                updated_by=user.user_id,
             )
 
             order.payment_status = "paid"

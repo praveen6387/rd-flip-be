@@ -286,6 +286,8 @@ class Flipbook(models.Model):
     total_pages = models.PositiveIntegerField(default=0)
     flip_id = models.CharField(max_length=10, unique=True, db_index=True, editable=False)
 
+    active_until = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.UUIDField(null=True, blank=True)
