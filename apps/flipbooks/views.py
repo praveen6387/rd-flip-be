@@ -19,15 +19,10 @@ class FlipbookListView(APIView):
 
     def get(self, request):
         thumbnail = (
-            FlipbookPage.objects.filter(flipbook_id=OuterRef("pk"))
-            .order_by("page_number")
-            .values("image_url")[:1]
+            FlipbookPage.objects.filter(flipbook_id=OuterRef("pk")).order_by("page_number").values("image_url")[:1]
         )
-        flipbooks = (
-            Flipbook.objects.filter(user=request.user)
-            .annotate(thumbnail=Subquery(thumbnail))
-            .order_by("-created_at")
-        )
+        flipbooks = Flipbook.objects.filter(user=request.user).annotate(thumbnail=Subquery(thumbnail)).order_by("-id")
+
         return api_success(
             message="Flipbooks fetched",
             data={"flipbooks": FlipbookListSerializer(flipbooks, many=True).data},
@@ -98,9 +93,7 @@ class PublicFlipbookView(APIView):
             )
 
         if flipbook.active_until and timezone.now() > flipbook.active_until:
-            flipbook_data = PublicFlipbookSerializer(
-                flipbook, context={"omit_pages": True}
-            ).data
+            flipbook_data = PublicFlipbookSerializer(flipbook, context={"omit_pages": True}).data
             flipbook_data.pop("pages", None)
             return api_fail(
                 message="This flipbook has expired.",
