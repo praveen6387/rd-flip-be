@@ -46,7 +46,7 @@ Back to [Flipbook index](./README.md) · [Response format](../auth/response-form
 | **studio** | Always copied from the logged-in **user** profile. Payload values are ignored. |
 | **lab** | Use payload if provided (non-empty). If missing or blank, fall back to the user profile. |
 
-`studio_name` and `whatsapp_number` must end up non-empty (from payload and/or profile). Instagram and Facebook may be empty.
+`studio_name` must end up non-empty (from payload and/or profile). WhatsApp, Instagram, and Facebook may be empty.
 
 The backend generates a unique `flip_id` (10 characters, letters + numbers) and stores it with a unique index. It is not sent in the request.
 

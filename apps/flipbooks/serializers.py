@@ -185,14 +185,6 @@ class CreateFlipbookSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"studio_name": "Studio name is required. Add it on your profile."}
             )
-        if not branding["whatsapp_number"]:
-            raise serializers.ValidationError(
-                {
-                    "whatsapp_number": (
-                        "WhatsApp number is required. Add it on your profile."
-                    )
-                }
-            )
         return branding
 
     def create(self, validated_data):

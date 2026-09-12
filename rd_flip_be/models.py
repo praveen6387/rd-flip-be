@@ -279,9 +279,9 @@ class Flipbook(models.Model):
 
     studio_name = models.CharField(max_length=255)
 
-    whatsapp_number = models.CharField(max_length=20)
-    instagram_url = models.URLField(blank=True)
-    facebook_url = models.URLField(blank=True)
+    whatsapp_number = models.CharField(max_length=20, blank=True, null=True)
+    instagram_url = models.URLField(blank=True, null=True)
+    facebook_url = models.URLField(blank=True, null=True)
 
     total_pages = models.PositiveIntegerField(default=0)
     flip_id = models.CharField(max_length=10, unique=True, db_index=True, editable=False)
