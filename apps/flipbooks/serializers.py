@@ -10,7 +10,7 @@ from apps.flipbooks.helpers import (
     unique_flip_id,
     validate_user_credits,
 )
-from apps.flipbooks.s3 import canonical_image_url, presign_image_urls
+from apps.flipbooks.s3 import canonical_image_url, public_image_urls
 from rd_flip_be.models import Flipbook, FlipbookPage
 
 User = get_user_model()
@@ -39,7 +39,7 @@ class FlipbookPageResponseSerializer(serializers.ModelSerializer):
         )
 
     def get_image_url(self, obj):
-        return presign_image_urls([obj.image_url])[0]
+        return canonical_image_url(obj.image_url)
 
 
 class FlipbookResponseSerializer(serializers.ModelSerializer):
@@ -87,7 +87,7 @@ class FlipbookListSerializer(serializers.ModelSerializer):
         )
 
     def get_thumbnail(self, obj):
-        return presign_image_urls([getattr(obj, "thumbnail", None)])[0]
+        return canonical_image_url(getattr(obj, "thumbnail", None) or "")
 
 
 class PublicFlipbookSerializer(serializers.ModelSerializer):
@@ -113,11 +113,11 @@ class PublicFlipbookSerializer(serializers.ModelSerializer):
         if self.context.get("omit_pages"):
             return []
         pages = list(obj.pages.all())
-        signed_urls = presign_image_urls([page.image_url for page in pages])
+        urls = public_image_urls([page.image_url for page in pages])
         return [
             {
                 "page_number": page.page_number,
-                "image_url": signed_urls[index],
+                "image_url": urls[index],
                 "cover_type": page.cover_type,
             }
             for index, page in enumerate(pages)
