@@ -284,7 +284,7 @@ class Flipbook(models.Model):
     facebook_url = models.URLField(blank=True, null=True)
 
     total_pages = models.PositiveIntegerField(default=0)
-    flip_id = models.CharField(max_length=10, unique=True, db_index=True, editable=False)
+    flip_id = models.CharField(max_length=20, unique=True, db_index=True, editable=False)
 
     active_until = models.DateTimeField(null=True, blank=True)
 
