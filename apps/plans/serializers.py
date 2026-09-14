@@ -13,6 +13,7 @@ class PlanSerializer(serializers.ModelSerializer):
             "price",
             "credit",
             "validity_days",
+            "features",
             "is_active",
             "created_at",
             "updated_at",

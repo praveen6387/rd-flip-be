@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 import uuid
 
@@ -69,6 +70,12 @@ class Plan(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     credit = models.PositiveIntegerField()
     validity_days = models.PositiveIntegerField()
+    features = ArrayField(
+        models.TextField(),
+        default=list,
+        blank=True,
+        help_text="List of text items describing this plan",
+    )
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -399,3 +406,31 @@ class CreditTransaction(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.credits} credits"
+
+
+class Setting(models.Model):
+    id = models.AutoField(primary_key=True)
+    key = models.CharField(max_length=100, unique=True)
+    value = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "settings"
+
+    def __str__(self):
+        return self.key
+
+
+class ContactUs(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=20)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "contact_us"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} <{self.email}>"

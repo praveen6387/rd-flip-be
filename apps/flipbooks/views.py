@@ -53,12 +53,12 @@ class PublicFlipbookView(APIView):
 
     def get(self, request, flip_id: str):
         flip_id = (flip_id or "").strip()
-        if len(flip_id) != 10:
-            return api_fail(
-                message="Flipbook not found.",
-                details="Flipbook not found.",
-                http_status=status.HTTP_404_NOT_FOUND,
-            )
+        # if len(flip_id) != 10:
+        #     return api_fail(
+        #         message="Flipbook not found.",
+        #         details="Flipbook not found.",
+        #         http_status=status.HTTP_404_NOT_FOUND,
+        #     )
 
         pages_qs = FlipbookPage.objects.order_by("page_number").only(
             "id",
@@ -85,6 +85,7 @@ class PublicFlipbookView(APIView):
             .prefetch_related(Prefetch("pages", queryset=pages_qs))
             .first()
         )
+        print("flipbook", flipbook)
         if flipbook is None:
             return api_fail(
                 message="Flipbook not found.",

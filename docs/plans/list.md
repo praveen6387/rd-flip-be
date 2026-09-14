@@ -42,6 +42,7 @@ curl http://127.0.0.1:8000/api/plans/
         "price": "499.00",
         "credit": 5,
         "validity_days": 30,
+        "features": [],
         "is_active": true,
         "created_at": "2026-09-08T10:00:00.000000Z",
         "updated_at": "2026-09-08T10:00:00.000000Z"
@@ -53,6 +54,7 @@ curl http://127.0.0.1:8000/api/plans/
         "price": "999.00",
         "credit": 20,
         "validity_days": 30,
+        "features": [],
         "is_active": true,
         "created_at": "2026-09-08T10:00:00.000000Z",
         "updated_at": "2026-09-08T10:00:00.000000Z"
