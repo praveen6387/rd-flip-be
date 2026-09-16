@@ -43,7 +43,7 @@ Credit allocation (`apps/payments/services/credit_allocation.py`):
 - `left = 0`: just add new credits
 - Sets `user.plan` = `plan.plan_type` (`studio` / `lab`)
 - Idempotent: skips if a `purchase` `CreditTransaction` already exists for this order
-- Clears `Flipbook.active_until` for all of the user's flipbooks (removes free 90-day expiry after recharge)
+- Clears `Flipbook.active_until` for all of the user's flipbooks (removes free 30-day expiry after recharge)
 
 ---
 

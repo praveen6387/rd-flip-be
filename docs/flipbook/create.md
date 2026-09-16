@@ -63,7 +63,7 @@ Creating a flipbook costs **1 credit** from the logged-in user's account:
 
 ### Flipbook lifecycle (`active_until`)
 
-- **No active paid plan** (free credits only): `active_until` = create time + 90 days
+- **No active paid plan** (free credits only): `active_until` = create time + 30 days
 - **Has active `UserPlan`**: `active_until` stays `null` (no fixed flipbook expiry)
 - On later recharge/purchase, all of the user's existing flipbooks with `active_until` set are cleared to `null`
 

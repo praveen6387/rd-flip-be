@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 FLIP_ID_ALPHABET = string.ascii_letters + string.digits
 FLIP_ID_LENGTH = 10
-FREE_FLIPBOOK_LIFETIME_DAYS = 90
+FREE_FLIPBOOK_LIFETIME_DAYS = 30
 
 
 def first_non_empty(*values) -> str:
@@ -48,7 +48,7 @@ def has_active_user_plan(user) -> bool:
 
 def resolve_active_until(user):
     """
-    Free (no active plan) flipbooks expire after 3 months.
+    Free (no active plan) flipbooks expire after 30 days.
     Paid-plan flipbooks have no fixed expiry (active_until stays null).
     """
     if has_active_user_plan(user):
