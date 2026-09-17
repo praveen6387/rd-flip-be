@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
+# url entry point
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("apps.auth.urls")),
