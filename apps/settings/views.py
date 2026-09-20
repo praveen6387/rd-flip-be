@@ -4,10 +4,7 @@ from rest_framework.views import APIView
 from rd_flip_be.models import Setting
 from rd_flip_be.responses import api_success
 
-LEGAL_SETTING_KEYS = (
-    "privacy_policy",
-    "terms_and_conditions",
-)
+LEGAL_SETTING_KEYS = ("privacy_policy", "terms_and_conditions", "refund")
 
 
 class LegalSettingsView(APIView):
@@ -25,5 +22,6 @@ class LegalSettingsView(APIView):
             data={
                 "privacy_policy": by_key.get("privacy_policy"),
                 "terms_and_conditions": by_key.get("terms_and_conditions"),
+                "refund": by_key.get("refund"),
             },
         )
