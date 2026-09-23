@@ -21,7 +21,11 @@ class FlipbookListView(APIView):
         thumbnail = (
             FlipbookPage.objects.filter(flipbook_id=OuterRef("pk")).order_by("page_number").values("image_url")[:1]
         )
-        flipbooks = Flipbook.objects.filter(user=request.user).annotate(thumbnail=Subquery(thumbnail)).order_by("-id")
+        flipbooks = (
+            Flipbook.objects.filter(user=request.user, is_active=True)
+            .annotate(thumbnail=Subquery(thumbnail))
+            .order_by("-id")
+        )
 
         return api_success(
             message="Flipbooks fetched",
@@ -68,7 +72,7 @@ class PublicFlipbookView(APIView):
             "cover_type",
         )
         flipbook = (
-            Flipbook.objects.filter(flip_id=flip_id)
+            Flipbook.objects.filter(flip_id=flip_id, is_active=True)
             .only(
                 "id",
                 "flip_id",
@@ -85,7 +89,7 @@ class PublicFlipbookView(APIView):
             .prefetch_related(Prefetch("pages", queryset=pages_qs))
             .first()
         )
-        print("flipbook", flipbook)
+
         if flipbook is None:
             return api_fail(
                 message="Flipbook not found.",
@@ -107,3 +111,27 @@ class PublicFlipbookView(APIView):
             message="Flipbook fetched",
             data={"flipbook": PublicFlipbookSerializer(flipbook).data},
         )
+
+
+class FlipbookDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def delete(self, request, id):
+        flipbook = Flipbook.objects.filter(
+            id=id,
+            user=request.user,
+            is_active=True,
+        ).first()
+
+        if flipbook is None:
+            return api_fail(
+                message="Flipbook not found.",
+                details="Flipbook not found.",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+
+        flipbook.is_active = False
+        flipbook.updated_by = request.user.user_id
+        flipbook.save(update_fields=["is_active", "updated_by", "updated_at"])
+
+        return api_success(message="Flipbook deleted")

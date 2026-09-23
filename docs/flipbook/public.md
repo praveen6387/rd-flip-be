@@ -105,6 +105,8 @@ Frontend: treat `body.status === "fail"` as expired even when HTTP is 200.
 
 ## Fail response (`404`)
 
+Unknown `flip_id`, or flipbook was soft-deleted (`is_active=false`):
+
 ```json
 {
   "status": "fail",
