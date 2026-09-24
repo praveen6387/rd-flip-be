@@ -6,7 +6,10 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.auth.helpers import (
+    create_password_reset_token,
+    get_valid_reset_token,
     normalize_indian_phone,
+    send_password_reset_email,
     set_user_password,
     verify_current_password,
 )
@@ -226,3 +229,69 @@ class ChangePasswordSerializer(serializers.Serializer):
             self.context["request"].user,
             self.validated_data["new_password"],
         )
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        error_messages={
+            "blank": "Email may not be blank.",
+            "required": "Email is required.",
+            "invalid": "Enter a valid email.",
+        }
+    )
+
+    def validate_email(self, value):
+        email = (value or "").strip().lower()
+        user = User.objects.filter(email=email).first()
+        if user is None:
+            raise serializers.ValidationError("No account found with this email.")
+        if not user.is_active:
+            raise serializers.ValidationError("This account is inactive.")
+        self.context["reset_user"] = user
+        return email
+
+    def save(self, **kwargs):
+        user = self.context["reset_user"]
+        raw_token = create_password_reset_token(user)
+        send_password_reset_email(user, raw_token)
+        return user
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    password_reset_token = serializers.CharField(
+        write_only=True,
+        error_messages={
+            "blank": "Password reset token may not be blank.",
+            "required": "Password reset token is required.",
+        },
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        max_length=128,
+        error_messages={
+            "blank": "New password may not be blank.",
+            "required": "New password is required.",
+            "min_length": "New password must be at least 8 characters.",
+        },
+    )
+
+    def validate_password_reset_token(self, value):
+        token = get_valid_reset_token((value or "").strip())
+        self.context["reset_token"] = token
+        return value
+
+    def validate(self, attrs):
+        user = self.context["reset_token"].user
+
+        if not user.is_active:
+            raise serializers.ValidationError("This account is inactive.")
+
+        return attrs
+
+    def save(self, **kwargs):
+        token = self.context["reset_token"]
+        user = set_user_password(token.user, self.validated_data["new_password"])
+        token.used_at = timezone.now()
+        token.save(update_fields=["used_at"])
+        return user

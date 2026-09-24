@@ -6,7 +6,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.auth.serializers import (
     ChangePasswordSerializer,
+    ForgotPasswordSerializer,
     LoginSerializer,
+    ResetPasswordSerializer,
     SignupResponseSerializer,
     SignupSerializer,
     UpdateSocialLinksSerializer,
@@ -109,6 +111,26 @@ class ChangePasswordView(APIView):
             data=request.data,
             context={"request": request},
         )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return api_success(message="Password updated")
+
+
+class ForgotPasswordView(APIView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return api_success(message="Password reset link sent")
+
+
+class ResetPasswordView(APIView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return api_success(message="Password updated")

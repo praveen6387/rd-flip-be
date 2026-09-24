@@ -10,6 +10,8 @@
 | [Auth · Refresh](./auth/refresh.md) | Refresh token + frontend flow |
 | [Auth · Me](./auth/me.md) | Current user profile API |
 | [Auth · Change password](./auth/change-password.md) | Update password API |
+| [Auth · Forgot password](./auth/forgot-password.md) | Email a reset link |
+| [Auth · Reset password](./auth/reset-password.md) | Set password from reset token |
 | [Flipbook](./flipbook/README.md) | Flipbook overview |
 | [Flipbook · Create](./flipbook/create.md) | Create flipbook API |
 | [Flipbook · List](./flipbook/list.md) | List current user's flipbooks |

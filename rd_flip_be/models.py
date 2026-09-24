@@ -435,3 +435,24 @@ class ContactUs(models.Model):
 
     def __str__(self):
         return f"{self.name} <{self.email}>"
+
+
+class PasswordResetToken(models.Model):
+    id = models.AutoField(primary_key=True)
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+    )
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "password_reset_tokens"
+        ordering = ["-id"]
+
+    def __str__(self):
+        return f"{self.user.email} reset token"

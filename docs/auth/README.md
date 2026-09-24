@@ -18,6 +18,8 @@ http://127.0.0.1:8000/api/auth/
 | [Refresh](./refresh.md) | Refresh access token + frontend flow |
 | [Me](./me.md) | Current user profile (JWT required) |
 | [Change password](./change-password.md) | Update password (JWT required) |
+| [Forgot password](./forgot-password.md) | Email a reset link |
+| [Reset password](./reset-password.md) | Set a new password from the link token |
 
 ## Code folder (`apps/auth/`)
 
@@ -25,7 +27,7 @@ http://127.0.0.1:8000/api/auth/
 apps/auth/
 ├── apps.py            ← App config (label: user_auth)
 ├── helpers.py         ← Shared helpers (normalize_indian_phone)
-├── urls.py            ← Routes: health/, signup/, login/, refresh/, me/, change-password/
+├── urls.py            ← Routes: health/, signup/, login/, refresh/, me/, change-password/, forgot-password/, reset-password/
 ├── views.py           ← API views
 ├── serializers.py     ← Request validation
 └── migrations/
@@ -55,6 +57,8 @@ Client → /api/auth/...
 | `GET` | `/api/auth/me/` | [me.md](./me.md) |
 | `PUT` | `/api/auth/me/` | [me.md](./me.md) (social links) |
 | `POST` | `/api/auth/change-password/` | [change-password.md](./change-password.md) |
+| `POST` | `/api/auth/forgot-password/` | [forgot-password.md](./forgot-password.md) |
+| `POST` | `/api/auth/reset-password/` | [reset-password.md](./reset-password.md) |
 
 ### Health (quick)
 

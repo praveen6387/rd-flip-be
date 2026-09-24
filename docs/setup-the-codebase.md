@@ -131,6 +131,10 @@ Django reads `.env` via `django-environ` in `rd_flip_be/settings.py`.
 | `AWS_S3_PRESIGN_EXPIRES` | Signed image URL lifetime in seconds (default `3600`) |
 | `RAZORPAY_KEY_ID` | Razorpay key id (use `rzp_test_…` in test mode) |
 | `RAZORPAY_KEY_SECRET` | Razorpay key secret |
+| `FRONTEND_BASE_URL` | Site used in reset-password emails (default `https://rd-studio.in`) |
+| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | SMTP for forgot-password mail |
+| `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP credentials |
+| `DEFAULT_FROM_EMAIL` | From address on reset emails |
 
 Do **not** commit real production secrets. `.env` is gitignored.
 
