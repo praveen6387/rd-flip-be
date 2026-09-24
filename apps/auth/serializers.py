@@ -5,7 +5,11 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.auth.helpers import normalize_indian_phone
+from apps.auth.helpers import (
+    normalize_indian_phone,
+    set_user_password,
+    verify_current_password,
+)
 from rd_flip_be.credits import create_credit_transaction
 
 User = get_user_model()
@@ -177,3 +181,32 @@ class UpdateSocialLinksSerializer(serializers.ModelSerializer):
         if request and request.user and request.user.is_authenticated:
             instance.updated_by = request.user.user_id
         return super().update(instance, validated_data)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, max_length=128)
+    new_password = serializers.CharField(write_only=True, min_length=8, max_length=128)
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        verify_current_password(user, value)
+        return value
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+
+        if not user.is_active:
+            raise serializers.ValidationError("This account is inactive.")
+
+        if attrs["current_password"] == attrs["new_password"]:
+            raise serializers.ValidationError(
+                "New password must be different from the current password."
+            )
+
+        return attrs
+
+    def save(self, **kwargs):
+        return set_user_password(
+            self.context["request"].user,
+            self.validated_data["new_password"],
+        )

@@ -9,6 +9,7 @@
 | [Auth · Login](./auth/login.md) | Login API + curl |
 | [Auth · Refresh](./auth/refresh.md) | Refresh token + frontend flow |
 | [Auth · Me](./auth/me.md) | Current user profile API |
+| [Auth · Change password](./auth/change-password.md) | Update password API |
 | [Flipbook](./flipbook/README.md) | Flipbook overview |
 | [Flipbook · Create](./flipbook/create.md) | Create flipbook API |
 | [Flipbook · List](./flipbook/list.md) | List current user's flipbooks |

@@ -5,6 +5,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.auth.serializers import (
+    ChangePasswordSerializer,
     LoginSerializer,
     SignupResponseSerializer,
     SignupSerializer,
@@ -98,3 +99,16 @@ class MeView(APIView):
             message="Profile updated",
             data={"user": UserProfileSerializer(user).data},
         )
+
+
+class ChangePasswordView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return api_success(message="Password updated")

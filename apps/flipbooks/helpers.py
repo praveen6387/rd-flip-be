@@ -58,7 +58,14 @@ def resolve_active_until(user):
 
 def validate_user_credits(user) -> None:
     """Raise ValidationError if the user cannot spend 1 credit on a flipbook."""
+    from rd_flip_be.models import UserPlan
+
     today = timezone.localdate()
+
+    if not has_active_user_plan(user) and UserPlan.objects.filter(user=user).exists():
+        raise serializers.ValidationError(
+            "Your plan has expired. Please renew to create a flipbook."
+        )
 
     if user.credit_expire_date and today > user.credit_expire_date:
         raise serializers.ValidationError("Your credits have expired. Please renew to create a flipbook.")

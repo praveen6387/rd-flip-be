@@ -58,6 +58,8 @@ Creating a flipbook costs **1 credit** from the logged-in user's account:
 
 - `left_credit` must be ≥ 1
 - `credit_expire_date` must not be in the past (if set)
+- If the user has ever purchased a `UserPlan`, it must still be `active` and `expiry_date` must be in the future
+- Signup free credits (no `UserPlan`) still work until `credit_expire_date`
 - On success: `used_credit` +1, `left_credit` -1
 - Also creates a `CreditTransaction` with `credit_type=usage`, `credits=-1`, linked to the flipbook
 
@@ -180,6 +182,17 @@ Credits expired:
   "status": "fail",
   "message": "Your credits have expired. Please renew to create a flipbook.",
   "details": "Your credits have expired. Please renew to create a flipbook.",
+  "data": null
+}
+```
+
+Plan expired:
+
+```json
+{
+  "status": "fail",
+  "message": "Your plan has expired. Please renew to create a flipbook.",
+  "details": "Your plan has expired. Please renew to create a flipbook.",
   "data": null
 }
 ```

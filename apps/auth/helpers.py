@@ -25,3 +25,15 @@ def normalize_indian_phone(value: str) -> str:
         )
 
     return f"+91{digits}"
+
+
+def verify_current_password(user, current_password: str) -> None:
+    if not user.check_password(current_password):
+        raise serializers.ValidationError("Current password is incorrect.")
+
+
+def set_user_password(user, new_password: str):
+    user.set_password(new_password)
+    user.updated_by = user.user_id
+    user.save(update_fields=["password", "updated_by", "updated_at"])
+    return user
