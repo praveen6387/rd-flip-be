@@ -184,8 +184,24 @@ class UpdateSocialLinksSerializer(serializers.ModelSerializer):
 
 
 class ChangePasswordSerializer(serializers.Serializer):
-    current_password = serializers.CharField(write_only=True, max_length=128)
-    new_password = serializers.CharField(write_only=True, min_length=8, max_length=128)
+    current_password = serializers.CharField(
+        write_only=True,
+        max_length=128,
+        error_messages={
+            "blank": "Current password may not be blank.",
+            "required": "Current password is required.",
+        },
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        max_length=128,
+        error_messages={
+            "blank": "New password may not be blank.",
+            "required": "New password is required.",
+            "min_length": "New password must be at least 8 characters.",
+        },
+    )
 
     def validate_current_password(self, value):
         user = self.context["request"].user
