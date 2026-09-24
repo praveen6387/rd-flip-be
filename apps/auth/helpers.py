@@ -28,9 +28,7 @@ def normalize_indian_phone(value: str) -> str:
         digits = digits[1:]
 
     if len(digits) != 10 or digits[0] not in "6789":
-        raise serializers.ValidationError(
-            "Enter a valid 10-digit Indian mobile number."
-        )
+        raise serializers.ValidationError("Enter a valid 10-digit Indian mobile number.")
 
     return f"+91{digits}"
 
@@ -54,9 +52,7 @@ def hash_reset_token(raw_token: str) -> str:
 def create_password_reset_token(user) -> str:
     from rd_flip_be.models import PasswordResetToken
 
-    PasswordResetToken.objects.filter(user=user, used_at__isnull=True).update(
-        used_at=timezone.now()
-    )
+    PasswordResetToken.objects.filter(user=user, used_at__isnull=True).update(used_at=timezone.now())
     raw_token = secrets.token_urlsafe(32)
     PasswordResetToken.objects.create(
         user=user,
@@ -73,19 +69,22 @@ def build_password_reset_link(raw_token: str) -> str:
 
 def send_password_reset_email(user, raw_token: str) -> None:
     link = build_password_reset_link(raw_token)
-    send_mail(
-        subject="Reset your RD Flip password",
-        message=(
-            f"Hi {user.first_name or 'there'},\n\n"
-            "Use this link to reset your password. "
-            f"It expires in {RESET_TOKEN_TTL_MINUTES} minutes.\n\n"
-            f"{link}\n\n"
-            "If you did not request this, you can ignore this email."
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject="Reset your RD Flip password",
+            message=(
+                f"Hi {user.first_name or 'there'},\n\n"
+                "Use this link to reset your password. "
+                f"It expires in {RESET_TOKEN_TTL_MINUTES} minutes.\n\n"
+                f"{link}\n\n"
+                "If you did not request this, you can ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except Exception:
+        raise serializers.ValidationError("Could not send reset email. Check email settings and try again.")
 
 
 def get_valid_reset_token(raw_token: str):
