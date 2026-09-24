@@ -1,12 +1,15 @@
 import hashlib
+import logging
 import re
 import secrets
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import get_connection, send_mail
 from django.utils import timezone
 from rest_framework import serializers
+
+logger = logging.getLogger(__name__)
 
 RESET_TOKEN_TTL_MINUTES = 5
 
@@ -82,8 +85,10 @@ def send_password_reset_email(user, raw_token: str) -> None:
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
+            connection=get_connection(timeout=settings.EMAIL_TIMEOUT),
         )
     except Exception:
+        logger.exception("Failed to send password reset email")
         raise serializers.ValidationError("Could not send reset email. Check email settings and try again.")
 
 
