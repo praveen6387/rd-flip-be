@@ -272,6 +272,24 @@ class PaymentTransaction(models.Model):
         return self.gateway_payment_id
 
 
+class Song(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    category = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    audio_url = models.URLField(max_length=2048)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "songs"
+        ordering = ["category", "name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Flipbook(models.Model):
     id = models.AutoField(primary_key=True)
 
