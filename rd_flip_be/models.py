@@ -275,9 +275,9 @@ class PaymentTransaction(models.Model):
 class Song(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    category = models.CharField(max_length=100)
+    category = models.CharField(max_length=100, blank=True, default="")
     description = models.TextField(blank=True)
-    audio_url = models.URLField(max_length=2048)
+    audio_url = models.CharField(max_length=2048)
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -310,6 +310,7 @@ class Flipbook(models.Model):
 
     total_pages = models.PositiveIntegerField(default=0)
     flip_id = models.CharField(max_length=20, unique=True, db_index=True, editable=False)
+    song_id = models.CharField(max_length=64, blank=True, null=True)
 
     active_until = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)

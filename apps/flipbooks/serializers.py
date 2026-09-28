@@ -58,6 +58,7 @@ class FlipbookResponseSerializer(serializers.ModelSerializer):
             "instagram_url",
             "facebook_url",
             "total_pages",
+            "song_id",
             "pages",
             "created_at",
             "updated_at",
@@ -137,6 +138,9 @@ class CreateFlipbookSerializer(serializers.Serializer):
     )
     instagram_url = serializers.URLField(required=False, allow_blank=True)
     facebook_url = serializers.URLField(required=False, allow_blank=True)
+    song_id = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=64, default=""
+    )
 
     def validate_images(self, images):
         if not images:
@@ -151,6 +155,10 @@ class CreateFlipbookSerializer(serializers.Serializer):
         if not number:
             return ""
         return normalize_indian_phone(number)
+
+    def validate_song_id(self, value):
+        song_id = str(value or "").strip()
+        return song_id or None
 
     def _branding_from_user(self, user) -> dict:
         return {
@@ -207,6 +215,7 @@ class CreateFlipbookSerializer(serializers.Serializer):
                 facebook_url=branding["facebook_url"],
                 total_pages=len(images),
                 flip_id=unique_flip_id(),
+                song_id=validated_data.get("song_id") or None,
                 active_until=resolve_active_until(user),
                 created_by=user.user_id,
                 updated_by=user.user_id,
