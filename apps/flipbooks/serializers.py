@@ -11,7 +11,7 @@ from apps.flipbooks.helpers import (
     validate_user_credits,
 )
 from apps.flipbooks.s3 import canonical_image_url, presign_image_url, presign_image_urls
-from rd_flip_be.models import Flipbook, FlipbookPage
+from rd_flip_be.models import Flipbook, FlipbookPage, Song
 
 User = get_user_model()
 
@@ -93,6 +93,7 @@ class FlipbookListSerializer(serializers.ModelSerializer):
 
 class PublicFlipbookSerializer(serializers.ModelSerializer):
     pages = serializers.SerializerMethodField()
+    audio_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Flipbook
@@ -107,8 +108,15 @@ class PublicFlipbookSerializer(serializers.ModelSerializer):
             "facebook_url",
             "total_pages",
             "active_until",
+            "audio_url",
             "pages",
         )
+
+    def get_audio_url(self, obj):
+        song = getattr(obj, "song", None)
+        if song and song.is_active:
+            return song.audio_url or ""
+        return ""
 
     def get_pages(self, obj):
         if self.context.get("omit_pages"):
@@ -138,8 +146,8 @@ class CreateFlipbookSerializer(serializers.Serializer):
     )
     instagram_url = serializers.URLField(required=False, allow_blank=True)
     facebook_url = serializers.URLField(required=False, allow_blank=True)
-    song_id = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True, max_length=64, default=""
+    song_id = serializers.IntegerField(
+        required=False, allow_null=True, default=None
     )
 
     def validate_images(self, images):
@@ -157,8 +165,12 @@ class CreateFlipbookSerializer(serializers.Serializer):
         return normalize_indian_phone(number)
 
     def validate_song_id(self, value):
-        song_id = str(value or "").strip()
-        return song_id or None
+        if value in (None, ""):
+            return None
+        song = Song.objects.filter(pk=value, is_active=True).first()
+        if song is None:
+            raise serializers.ValidationError("Song not found.")
+        return song.pk
 
     def _branding_from_user(self, user) -> dict:
         return {

@@ -310,7 +310,13 @@ class Flipbook(models.Model):
 
     total_pages = models.PositiveIntegerField(default=0)
     flip_id = models.CharField(max_length=20, unique=True, db_index=True, editable=False)
-    song_id = models.CharField(max_length=64, blank=True, null=True)
+    song = models.ForeignKey(
+        Song,
+        on_delete=models.PROTECT,
+        related_name="flipbooks",
+        null=True,
+        blank=True,
+    )
 
     active_until = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)

@@ -73,6 +73,7 @@ class PublicFlipbookView(APIView):
         )
         flipbook = (
             Flipbook.objects.filter(flip_id=flip_id, is_active=True)
+            .select_related("song")
             .only(
                 "id",
                 "flip_id",
@@ -85,6 +86,10 @@ class PublicFlipbookView(APIView):
                 "facebook_url",
                 "total_pages",
                 "active_until",
+                "song_id",
+                "song__id",
+                "song__audio_url",
+                "song__is_active",
             )
             .prefetch_related(Prefetch("pages", queryset=pages_qs))
             .first()
