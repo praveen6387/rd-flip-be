@@ -14,6 +14,7 @@ from apps.auth.helpers import (
     verify_current_password,
 )
 from rd_flip_be.credits import create_credit_transaction
+from rd_flip_be.models import CreditTransaction, Order, PaymentTransaction, UserPlan
 
 User = get_user_model()
 
@@ -56,6 +57,7 @@ class SignupSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
         credit_expire_date = timezone.localdate() + timedelta(days=7)
         validated_data["plan"] = "studio"
+        validated_data["role"] = "studio"
         validated_data["username"] = validated_data["email"]
         validated_data["total_credit"] = 5
         validated_data["used_credit"] = 0
@@ -90,6 +92,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "phone",
             "studio_name",
             "plan",
+            "role",
             "whatsapp_number",
             "instagram_url",
             "facebook_url",
@@ -102,6 +105,134 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "updated_at",
             "updated_by",
         )
+        read_only_fields = ("role",)
+
+
+class AdminUserCreditTransactionSerializer(serializers.ModelSerializer):
+    order_id = serializers.IntegerField(source="order.id", read_only=True, allow_null=True)
+    order_name = serializers.CharField(source="order.order_name", read_only=True, allow_null=True)
+    flipbook_id = serializers.IntegerField(source="flipbook.id", read_only=True, allow_null=True)
+    flipbook_title = serializers.CharField(source="flipbook.title", read_only=True, allow_null=True)
+
+    class Meta:
+        model = CreditTransaction
+        fields = (
+            "id",
+            "credit_type",
+            "credits",
+            "order_id",
+            "order_name",
+            "flipbook_id",
+            "flipbook_title",
+            "expiry_date",
+            "description",
+            "created_at",
+        )
+
+
+class AdminUserOrderSerializer(serializers.ModelSerializer):
+    plan_id = serializers.IntegerField(source="plan.id", read_only=True)
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
+    plan_type = serializers.CharField(source="plan.plan_type", read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "order_name",
+            "plan_id",
+            "plan_name",
+            "plan_type",
+            "amount",
+            "payment_status",
+            "gateway_order_id",
+            "created_at",
+        )
+
+
+class AdminUserPlanSerializer(serializers.ModelSerializer):
+    plan_id = serializers.IntegerField(source="plan.id", read_only=True)
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
+    plan_type = serializers.CharField(source="plan.plan_type", read_only=True)
+    plan_price = serializers.DecimalField(
+        source="plan.price",
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    plan_credit = serializers.IntegerField(source="plan.credit", read_only=True)
+    validity_days = serializers.IntegerField(source="plan.validity_days", read_only=True)
+
+    class Meta:
+        model = UserPlan
+        fields = (
+            "id",
+            "plan_id",
+            "plan_name",
+            "plan_type",
+            "plan_price",
+            "plan_credit",
+            "validity_days",
+            "start_date",
+            "expiry_date",
+            "status",
+            "created_at",
+        )
+
+
+class AdminUserPaymentSerializer(serializers.ModelSerializer):
+    order_id = serializers.IntegerField(source="order.id", read_only=True)
+    order_name = serializers.CharField(source="order.order_name", read_only=True)
+
+    class Meta:
+        model = PaymentTransaction
+        fields = (
+            "id",
+            "order_id",
+            "order_name",
+            "gateway_payment_id",
+            "amount",
+            "payment_status",
+            "payment_method",
+            "created_at",
+        )
+
+
+class AdminUserListSerializer(serializers.ModelSerializer):
+    credit_transactions = AdminUserCreditTransactionSerializer(many=True, read_only=True)
+    orders = AdminUserOrderSerializer(many=True, read_only=True)
+    user_plans = AdminUserPlanSerializer(many=True, read_only=True)
+    payments = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "user_id",
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "studio_name",
+            "plan",
+            "role",
+            "total_credit",
+            "used_credit",
+            "left_credit",
+            "expired_credit",
+            "credit_expire_date",
+            "created_at",
+            "credit_transactions",
+            "orders",
+            "user_plans",
+            "payments",
+        )
+
+    def get_payments(self, user):
+        payments = []
+        for order in user.orders.all():
+            payments.extend(list(order.payment_transactions.all()))
+        payments.sort(key=lambda payment: payment.created_at, reverse=True)
+        return AdminUserPaymentSerializer(payments, many=True).data
 
 
 class SignupResponseSerializer(UserProfileSerializer):
@@ -115,6 +246,7 @@ class SignupResponseSerializer(UserProfileSerializer):
             "phone",
             "studio_name",
             "plan",
+            "role",
             "total_credit",
             "used_credit",
             "left_credit",

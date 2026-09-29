@@ -1,3 +1,4 @@
+from django.db.models import Prefetch, Q
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -5,6 +6,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.auth.serializers import (
+    AdminUserListSerializer,
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
     LoginSerializer,
@@ -14,7 +16,12 @@ from apps.auth.serializers import (
     UpdateSocialLinksSerializer,
     UserProfileSerializer,
 )
+from django.contrib.auth import get_user_model
+from rd_flip_be.models import CreditTransaction, Order, UserPlan
+from rd_flip_be.permissions import IsAdminRole
 from rd_flip_be.responses import api_success
+
+User = get_user_model()
 
 
 def _tokens_for_user(user) -> dict:
@@ -134,3 +141,43 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return api_success(message="Password updated")
+
+
+class AdminUserListView(APIView):
+    permission_classes = (IsAuthenticated, IsAdminRole)
+
+    def get(self, request):
+        query = str(request.query_params.get("q") or "").strip()
+        users = User.objects.prefetch_related(
+            Prefetch(
+                "credit_transactions",
+                queryset=CreditTransaction.objects.select_related(
+                    "order", "flipbook"
+                ).order_by("-created_at"),
+            ),
+            Prefetch(
+                "orders",
+                queryset=Order.objects.select_related("plan")
+                .prefetch_related("payment_transactions")
+                .order_by("-created_at"),
+            ),
+            Prefetch(
+                "user_plans",
+                queryset=UserPlan.objects.select_related("plan").order_by(
+                    "-created_at"
+                ),
+            ),
+        ).order_by("-id")
+        if query:
+            users = users.filter(
+                Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(email__icontains=query)
+                | Q(phone__icontains=query)
+                | Q(studio_name__icontains=query)
+            )
+
+        return api_success(
+            message="Users fetched",
+            data={"users": AdminUserListSerializer(users, many=True).data},
+        )

@@ -67,6 +67,37 @@ class OrderResponseSerializer(serializers.ModelSerializer):
         )
 
 
+class AdminOrderListSerializer(serializers.ModelSerializer):
+    plan_id = serializers.IntegerField(source="plan.id", read_only=True)
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
+    plan_type = serializers.CharField(source="plan.plan_type", read_only=True)
+    user_id = serializers.UUIDField(source="user.user_id", read_only=True)
+    user_name = serializers.SerializerMethodField()
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    user_phone = serializers.CharField(source="user.phone", read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "order_name",
+            "plan_id",
+            "plan_name",
+            "plan_type",
+            "amount",
+            "payment_status",
+            "gateway_order_id",
+            "user_id",
+            "user_name",
+            "user_email",
+            "user_phone",
+            "created_at",
+        )
+
+    def get_user_name(self, order):
+        return f"{order.user.first_name} {order.user.last_name}".strip()
+
+
 def build_order_create_response(order, razorpay_order: dict | None = None) -> dict:
     """Order payload + Razorpay fields the FE needs to open checkout."""
     razorpay_order = razorpay_order or {}
