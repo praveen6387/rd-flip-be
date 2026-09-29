@@ -10,6 +10,11 @@ class User(AbstractUser):
         ("lab", "Lab"),
     ]
 
+    ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("studio", "Studio"),
+    ]
+
     id = models.AutoField(primary_key=True)
     user_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
@@ -45,6 +50,7 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.UUIDField(null=True, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="studio")
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
