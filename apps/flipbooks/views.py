@@ -4,6 +4,14 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.flipbooks.engagement import (
+    active_flipbook,
+    attach_visitor_cookie,
+    flipbook_is_expired,
+    record_view,
+    toggle_like,
+    visitor_id_from_request,
+)
 from apps.flipbooks.serializers import (
     CreateFlipbookSerializer,
     FlipbookListSerializer,
@@ -115,6 +123,53 @@ class PublicFlipbookView(APIView):
         return api_success(
             message="Flipbook fetched",
             data={"flipbook": PublicFlipbookSerializer(flipbook).data},
+        )
+
+
+class FlipbookEngagementView(APIView):
+    permission_classes = (AllowAny,)
+    authentication_classes = ()
+
+    def _flipbook_or_error(self, flip_id: str):
+        flipbook = active_flipbook(flip_id)
+        if flipbook is None:
+            return None, api_fail(
+                message="Flipbook not found.",
+                details="Flipbook not found.",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        if flipbook_is_expired(flipbook):
+            return None, api_fail(
+                message="This flipbook has expired.",
+                details="This flipbook is no longer available.",
+            )
+        return flipbook, None
+
+
+class FlipbookRecordView(FlipbookEngagementView):
+    def post(self, request, flip_id: str):
+        flipbook, error = self._flipbook_or_error(flip_id)
+        if error is not None:
+            return error
+
+        visitor_id = visitor_id_from_request(request)
+        payload = record_view(flipbook, visitor_id)
+        response = api_success(message="View recorded", data=payload)
+        return attach_visitor_cookie(response, visitor_id, secure=request.is_secure())
+
+
+class FlipbookLikeView(FlipbookEngagementView):
+    def post(self, request, flip_id: str):
+        flipbook, error = self._flipbook_or_error(flip_id)
+        if error is not None:
+            return error
+
+        visitor_id = visitor_id_from_request(request)
+        payload = toggle_like(flipbook, visitor_id)
+        message = "Flipbook liked" if payload["liked"] else "Like removed"
+        response = api_success(message=message, data=payload)
+        return attach_visitor_cookie(
+            response, visitor_id, secure=request.is_secure()
         )
 
 

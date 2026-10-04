@@ -82,6 +82,8 @@ class FlipbookListSerializer(serializers.ModelSerializer):
             "facebook_url",
             "total_pages",
             "thumbnail",
+            "view_count",
+            "like_count",
             "active_until",
             "created_at",
             "updated_at",
@@ -201,10 +203,6 @@ class CreateFlipbookSerializer(serializers.Serializer):
         else:
             branding = profile
 
-        if not branding["studio_name"]:
-            raise serializers.ValidationError(
-                {"studio_name": "Studio name is required. Add it on your profile."}
-            )
         return branding
 
     def create(self, validated_data):

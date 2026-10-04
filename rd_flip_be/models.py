@@ -308,7 +308,7 @@ class Flipbook(models.Model):
     description = models.TextField(blank=True)
     date = models.DateField()
 
-    studio_name = models.CharField(max_length=255)
+    studio_name = models.CharField(max_length=255, blank=True)
 
     whatsapp_number = models.CharField(max_length=20, blank=True, null=True)
     instagram_url = models.URLField(blank=True, null=True)
@@ -326,6 +326,8 @@ class Flipbook(models.Model):
 
     active_until = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    view_count = models.PositiveIntegerField(default=0)
+    like_count = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -371,6 +373,32 @@ class FlipbookPage(models.Model):
 
     def __str__(self) -> str:
         return f"{self.flipbook.title} — page {self.page_number}"
+
+
+class FlipbookEngagement(models.Model):
+    id = models.AutoField(primary_key=True)
+    flipbook = models.ForeignKey(
+        Flipbook,
+        on_delete=models.CASCADE,
+        related_name="engagements",
+    )
+    visitor_id = models.UUIDField()
+    viewed = models.BooleanField(default=False)
+    liked = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "flipbook_engagements"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["flipbook", "visitor_id"],
+                name="uniq_flipbook_visitor",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.flipbook_id} — {self.visitor_id}"
 
 
 class CreditTransaction(models.Model):

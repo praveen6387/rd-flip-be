@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -81,6 +82,9 @@ class SignupSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    total_view_count = serializers.SerializerMethodField()
+    total_like_count = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
@@ -101,11 +105,33 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "left_credit",
             "expired_credit",
             "credit_expire_date",
+            "total_view_count",
+            "total_like_count",
             "created_at",
             "updated_at",
             "updated_by",
         )
         read_only_fields = ("role",)
+
+    def _engagement_totals(self, user):
+        cached = getattr(user, "_engagement_totals", None)
+        if cached is None:
+            totals = user.flipbooks.filter(is_active=True).aggregate(
+                views=Sum("view_count"),
+                likes=Sum("like_count"),
+            )
+            cached = {
+                "views": totals["views"] or 0,
+                "likes": totals["likes"] or 0,
+            }
+            user._engagement_totals = cached
+        return cached
+
+    def get_total_view_count(self, user):
+        return self._engagement_totals(user)["views"]
+
+    def get_total_like_count(self, user):
+        return self._engagement_totals(user)["likes"]
 
 
 class AdminUserCreditTransactionSerializer(serializers.ModelSerializer):
@@ -203,6 +229,8 @@ class AdminUserListSerializer(serializers.ModelSerializer):
     orders = AdminUserOrderSerializer(many=True, read_only=True)
     user_plans = AdminUserPlanSerializer(many=True, read_only=True)
     payments = serializers.SerializerMethodField()
+    total_view_count = serializers.IntegerField(read_only=True)
+    total_like_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = User
@@ -220,6 +248,8 @@ class AdminUserListSerializer(serializers.ModelSerializer):
             "left_credit",
             "expired_credit",
             "credit_expire_date",
+            "total_view_count",
+            "total_like_count",
             "created_at",
             "credit_transactions",
             "orders",

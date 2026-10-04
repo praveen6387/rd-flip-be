@@ -1,4 +1,5 @@
-from django.db.models import Prefetch, Q
+from django.db.models import IntegerField, Prefetch, Q, Sum
+from django.db.models.functions import Coalesce
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -148,7 +149,24 @@ class AdminUserListView(APIView):
 
     def get(self, request):
         query = str(request.query_params.get("q") or "").strip()
-        users = User.objects.prefetch_related(
+        users = User.objects.annotate(
+            total_view_count=Coalesce(
+                Sum(
+                    "flipbooks__view_count",
+                    filter=Q(flipbooks__is_active=True),
+                ),
+                0,
+                output_field=IntegerField(),
+            ),
+            total_like_count=Coalesce(
+                Sum(
+                    "flipbooks__like_count",
+                    filter=Q(flipbooks__is_active=True),
+                ),
+                0,
+                output_field=IntegerField(),
+            ),
+        ).prefetch_related(
             Prefetch(
                 "credit_transactions",
                 queryset=CreditTransaction.objects.select_related(
