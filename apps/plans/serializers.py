@@ -10,6 +10,7 @@ class PlanSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "plan_type",
+            "product",
             "price",
             "credit",
             "validity_days",

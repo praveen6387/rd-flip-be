@@ -40,13 +40,6 @@ class User(AbstractUser):
     instagram_url = models.URLField(blank=True)
     facebook_url = models.URLField(blank=True)
 
-    # credits
-    total_credit = models.PositiveIntegerField(default=0)
-    used_credit = models.PositiveIntegerField(default=0)
-    left_credit = models.PositiveIntegerField(default=0)
-    expired_credit = models.PositiveIntegerField(default=0)
-    credit_expire_date = models.DateField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.UUIDField(null=True, blank=True)
@@ -68,10 +61,20 @@ class Plan(models.Model):
         ("studio", "Studio"),
         ("lab", "Lab"),
     ]
+    PRODUCT_CHOICES = [
+        ("flipbook", "Flipbook"),
+        ("photo_selection", "Photo Selection"),
+        ("all", "All"),
+    ]
 
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     plan_type = models.CharField(max_length=20, choices=PLAN_TYPE_CHOICES)
+    product = models.CharField(
+        max_length=20,
+        choices=PRODUCT_CHOICES,
+        default="flipbook",
+    )
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
     credit = models.PositiveIntegerField()
@@ -120,6 +123,8 @@ class UserPlan(models.Model):
 
     start_date = models.DateTimeField()
     expiry_date = models.DateTimeField()
+    credits_total = models.PositiveIntegerField(default=0)
+    credits_used = models.PositiveIntegerField(default=0)
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -436,6 +441,14 @@ class CreditTransaction(models.Model):
 
     flipbook = models.ForeignKey(
         Flipbook,
+        on_delete=models.PROTECT,
+        related_name="credit_transactions",
+        null=True,
+        blank=True,
+    )
+
+    user_plan = models.ForeignKey(
+        UserPlan,
         on_delete=models.PROTECT,
         related_name="credit_transactions",
         null=True,

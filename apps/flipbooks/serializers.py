@@ -6,6 +6,7 @@ from apps.auth.helpers import normalize_indian_phone
 from apps.flipbooks.helpers import (
     deduct_user_credit,
     first_non_empty,
+    flipbook_plan_type,
     resolve_active_until,
     unique_flip_id,
     validate_user_credits,
@@ -185,7 +186,7 @@ class CreateFlipbookSerializer(serializers.Serializer):
     def _resolve_branding(self, user, payload: dict) -> dict:
         profile = self._branding_from_user(user)
 
-        if user.plan == "lab":
+        if flipbook_plan_type(user) == "lab":
             branding = {
                 "studio_name": first_non_empty(
                     payload.get("studio_name"), profile["studio_name"]
@@ -208,11 +209,11 @@ class CreateFlipbookSerializer(serializers.Serializer):
     def create(self, validated_data):
         request = self.context["request"]
         images = sorted(validated_data["images"], key=lambda item: item["page_number"])
-        branding = self._resolve_branding(request.user, validated_data)
 
         with transaction.atomic():
             user = User.objects.select_for_update().get(pk=request.user.pk)
             validate_user_credits(user)
+            branding = self._resolve_branding(user, validated_data)
 
             flipbook = Flipbook.objects.create(
                 user=user,

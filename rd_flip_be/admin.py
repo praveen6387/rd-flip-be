@@ -12,7 +12,6 @@ class UserAdmin(admin.ModelAdmin):
         "last_name",
         "role",
         "plan",
-        "left_credit",
     )
     list_filter = ("role", "plan", "is_active")
     search_fields = ("email", "phone", "first_name", "last_name", "studio_name")

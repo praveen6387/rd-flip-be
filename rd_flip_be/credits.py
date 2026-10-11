@@ -23,6 +23,7 @@ def create_credit_transaction(
     description: str = "",
     order=None,
     flipbook=None,
+    user_plan=None,
     expiry_date=None,
     created_by=None,
 ) -> CreditTransaction:
@@ -39,6 +40,7 @@ def create_credit_transaction(
         credits=credits,
         order=order,
         flipbook=flipbook,
+        user_plan=user_plan,
         expiry_date=_as_datetime(expiry_date),
         description=(description or "").strip(),
         created_by=created_by,

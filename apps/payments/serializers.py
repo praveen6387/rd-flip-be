@@ -5,7 +5,10 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.payments.services.credit_allocation import allocate_purchase_credits
+from apps.payments.services.credit_allocation import (
+    allocate_purchase_credits,
+    close_replaced_plans,
+)
 from apps.payments.services.razorpay_service import verify_razorpay_signature
 from rd_flip_be.models import Flipbook, Order, PaymentTransaction, UserPlan
 
@@ -87,15 +90,7 @@ class VerifyPaymentSerializer(serializers.Serializer):
                 },
             )
 
-            # make the existing user plan as expired
-            UserPlan.objects.filter(
-                user=user,
-                status="active",
-            ).update(
-                status="expired",
-                updated_at=now,
-                updated_by=user.user_id,
-            )
+            close_replaced_plans(user, plan.product, now)
 
             user_plan = UserPlan.objects.create(
                 user=user,
@@ -115,12 +110,13 @@ class VerifyPaymentSerializer(serializers.Serializer):
                 user_plan=user_plan,
             )
 
-            # paid/recharge removes free-period expiry from existing flipbooks
-            Flipbook.objects.filter(user=user, active_until__isnull=False).update(
-                active_until=None,
-                updated_at=now,
-                updated_by=user.user_id,
-            )
+            # A Flipbook or All plan removes the free-period expiry. Photo Selection does not.
+            if plan.product in ("flipbook", "all"):
+                Flipbook.objects.filter(user=user, active_until__isnull=False).update(
+                    active_until=None,
+                    updated_at=now,
+                    updated_by=user.user_id,
+                )
 
             order.payment_status = "paid"
             order.user_plan = user_plan

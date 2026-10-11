@@ -35,56 +35,107 @@ def unique_flip_id() -> str:
     raise RuntimeError("Could not generate a unique flip_id")
 
 
-def has_active_user_plan(user) -> bool:
-    """True when the user has a paid UserPlan that is still active."""
+def active_flipbook_plans(user):
+    """Active, unexpired Flipbook and All plans. Photo Selection is not included."""
     from rd_flip_be.models import UserPlan
 
-    return UserPlan.objects.filter(
+    return UserPlan.objects.select_related("plan").filter(
         user=user,
         status="active",
         expiry_date__gt=timezone.now(),
-    ).exists()
+        plan__product__in=["flipbook", "all"],
+    )
+
+
+def prefer_flipbook_plan(rows):
+    """A Flipbook plan wins over an All plan."""
+    fallback = None
+    for row in rows:
+        if row.plan.product == "flipbook":
+            return row
+        fallback = row
+    return fallback
+
+
+def has_active_user_plan(user) -> bool:
+    """True when a paid Flipbook or All plan is still active. The welcome plan does not count."""
+    return active_flipbook_plans(user).filter(plan__price__gt=0).exists()
+
+
+def flipbook_plan_type(user) -> str:
+    """Studio or lab from a paid Flipbook or All plan. Welcome credits stay on the user tier."""
+    row = prefer_flipbook_plan(active_flipbook_plans(user).filter(plan__price__gt=0))
+    if row is not None:
+        return row.plan.plan_type
+    return user.plan or "studio"
 
 
 def resolve_active_until(user):
     """
-    Free (no active plan) flipbooks expire after 30 days.
-    Paid-plan flipbooks have no fixed expiry (active_until stays null).
+    Welcome credits and accounts with no paid plan: flipbooks expire after 30 days.
+    A paid Flipbook or All plan has no fixed expiry (active_until stays null).
     """
     if has_active_user_plan(user):
         return None
     return timezone.now() + timedelta(days=FREE_FLIPBOOK_LIFETIME_DAYS)
 
 
+def flipbook_plan_to_spend(user):
+    """
+    Active Flipbook plan with credits left, otherwise an active All plan.
+    """
+    fallback = None
+    for row in active_flipbook_plans(user):
+        remaining = int(row.credits_total or 0) - int(row.credits_used or 0)
+        if remaining < 1:
+            continue
+        if row.plan.product == "flipbook":
+            return row
+        fallback = row
+    return fallback
+
+
 def validate_user_credits(user) -> None:
     """Raise ValidationError if the user cannot spend 1 credit on a flipbook."""
     from rd_flip_be.models import UserPlan
 
-    today = timezone.localdate()
+    if flipbook_plan_to_spend(user) is not None:
+        return
 
-    if not has_active_user_plan(user) and UserPlan.objects.filter(user=user).exists():
+    now = timezone.now()
+    covering = UserPlan.objects.filter(
+        user=user,
+        plan__product__in=["flipbook", "all"],
+    )
+    if covering.filter(status="active", expiry_date__gt=now).exists():
+        raise serializers.ValidationError(
+            "You do not have enough credits to create a flipbook."
+        )
+    if covering.exists():
         raise serializers.ValidationError(
             "Your plan has expired. Please renew to create a flipbook."
         )
-
-    if user.credit_expire_date and today > user.credit_expire_date:
-        raise serializers.ValidationError("Your credits have expired. Please renew to create a flipbook.")
-
-    if (user.left_credit or 0) < 1:
-        raise serializers.ValidationError("You do not have enough credits to create a flipbook.")
+    raise serializers.ValidationError(
+        "You need a flipbook plan to create a flipbook."
+    )
 
 
 def deduct_user_credit(user, flipbook=None) -> None:
+    plan_row = flipbook_plan_to_spend(user)
+    if plan_row is None:
+        raise serializers.ValidationError(
+            "You do not have enough credits to create a flipbook."
+        )
 
-    user.used_credit = (user.used_credit or 0) + 1
-    user.left_credit = (user.left_credit or 0) - 1
-    user.updated_by = user.user_id
-    user.save(update_fields=["used_credit", "left_credit", "updated_by", "updated_at"])
+    plan_row.credits_used = int(plan_row.credits_used or 0) + 1
+    plan_row.updated_by = user.user_id
+    plan_row.save(update_fields=["credits_used", "updated_by", "updated_at"])
     create_credit_transaction(
         user=user,
         credit_type="usage",
         credits=-1,
         flipbook=flipbook,
+        user_plan=plan_row,
         description=(
             f"Credit used to create flipbook {flipbook.flip_id}"
             if flipbook is not None

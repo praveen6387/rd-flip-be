@@ -1,4 +1,4 @@
-from django.db.models import IntegerField, Prefetch, Q, Sum
+from django.db.models import Count, IntegerField, Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -18,7 +18,7 @@ from apps.auth.serializers import (
     UserProfileSerializer,
 )
 from django.contrib.auth import get_user_model
-from rd_flip_be.models import CreditTransaction, Order, UserPlan
+from rd_flip_be.models import CreditTransaction, Flipbook, Order, UserPlan
 from rd_flip_be.permissions import IsAdminRole
 from rd_flip_be.responses import api_success
 
@@ -166,6 +166,7 @@ class AdminUserListView(APIView):
                 0,
                 output_field=IntegerField(),
             ),
+            flipbook_count=Count("flipbooks"),
         ).prefetch_related(
             Prefetch(
                 "credit_transactions",
@@ -184,6 +185,10 @@ class AdminUserListView(APIView):
                 queryset=UserPlan.objects.select_related("plan").order_by(
                     "-created_at"
                 ),
+            ),
+            Prefetch(
+                "flipbooks",
+                queryset=Flipbook.objects.order_by("-created_at"),
             ),
         ).order_by("-id")
         if query:

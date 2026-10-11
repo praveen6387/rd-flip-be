@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
@@ -14,8 +12,8 @@ from apps.auth.helpers import (
     set_user_password,
     verify_current_password,
 )
-from rd_flip_be.credits import create_credit_transaction
-from rd_flip_be.models import CreditTransaction, Order, PaymentTransaction, UserPlan
+from rd_flip_be.models import CreditTransaction, Flipbook, Order, PaymentTransaction, UserPlan
+from rd_flip_be.welcome import grant_welcome_plan
 
 User = get_user_model()
 
@@ -56,34 +54,30 @@ class SignupSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
-        credit_expire_date = timezone.localdate() + timedelta(days=7)
         validated_data["plan"] = "studio"
         validated_data["role"] = "studio"
         validated_data["username"] = validated_data["email"]
-        validated_data["total_credit"] = 5
-        validated_data["used_credit"] = 0
-        validated_data["left_credit"] = 5
-        validated_data["expired_credit"] = 0
-        validated_data["credit_expire_date"] = credit_expire_date
 
         with transaction.atomic():
             user = super().create(validated_data)
             user.set_password(password)
             user.save()
-            create_credit_transaction(
-                user=user,
-                credit_type="free",
-                credits=5,
-                expiry_date=credit_expire_date,
-                description="Welcome free credits on signup",
-                created_by=user.user_id,
-            )
+            grant_welcome_plan(user)
         return user
+
+
+PRODUCT_BALANCE_LABELS = {
+    "flipbook": "Flipbook",
+    "photo_selection": "Photo Selection",
+    "all": "All",
+}
+PRODUCT_BALANCE_ORDER = {"flipbook": 0, "photo_selection": 1, "all": 2}
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
     total_view_count = serializers.SerializerMethodField()
     total_like_count = serializers.SerializerMethodField()
+    active_balances = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -100,11 +94,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "instagram_url",
             "facebook_url",
-            "total_credit",
-            "used_credit",
-            "left_credit",
-            "expired_credit",
-            "credit_expire_date",
+            "active_balances",
             "total_view_count",
             "total_like_count",
             "created_at",
@@ -133,6 +123,43 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_total_like_count(self, user):
         return self._engagement_totals(user)["likes"]
 
+    def get_active_balances(self, user):
+        """
+        One balance per active plan. Flipbook and Photo Selection stay separate.
+        An All plan is a single shared balance. Welcome credits are the free Flipbook plan.
+        """
+        now = timezone.now()
+        rows = user.user_plans.select_related("plan").filter(
+            status="active",
+            expiry_date__gt=now,
+        )
+        balances = []
+        for row in rows:
+            product = row.plan.product
+            total = int(row.credits_total or 0)
+            used = int(row.credits_used or 0)
+            label = (
+                "Welcome"
+                if row.plan.price == 0
+                else PRODUCT_BALANCE_LABELS.get(product, product)
+            )
+            balances.append(
+                {
+                    "product": product,
+                    "label": label,
+                    "plan_name": row.plan.name,
+                    "plan_type": row.plan.plan_type,
+                    "features": list(row.plan.features or []),
+                    "credits_left": max(0, total - used),
+                    "credits_used": used,
+                    "credits_expired": 0,
+                    "credits_total": total,
+                    "expiry_date": timezone.localtime(row.expiry_date).date().isoformat(),
+                }
+            )
+        balances.sort(key=lambda item: PRODUCT_BALANCE_ORDER.get(item["product"], 9))
+        return balances
+
 
 class AdminUserCreditTransactionSerializer(serializers.ModelSerializer):
     order_id = serializers.IntegerField(source="order.id", read_only=True, allow_null=True)
@@ -160,6 +187,7 @@ class AdminUserOrderSerializer(serializers.ModelSerializer):
     plan_id = serializers.IntegerField(source="plan.id", read_only=True)
     plan_name = serializers.CharField(source="plan.name", read_only=True)
     plan_type = serializers.CharField(source="plan.plan_type", read_only=True)
+    plan_product = serializers.CharField(source="plan.product", read_only=True)
 
     class Meta:
         model = Order
@@ -169,6 +197,7 @@ class AdminUserOrderSerializer(serializers.ModelSerializer):
             "plan_id",
             "plan_name",
             "plan_type",
+            "plan_product",
             "amount",
             "payment_status",
             "gateway_order_id",
@@ -186,8 +215,10 @@ class AdminUserPlanSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
+    plan_product = serializers.CharField(source="plan.product", read_only=True)
     plan_credit = serializers.IntegerField(source="plan.credit", read_only=True)
     validity_days = serializers.IntegerField(source="plan.validity_days", read_only=True)
+    credits_left = serializers.SerializerMethodField()
 
     class Meta:
         model = UserPlan
@@ -196,14 +227,21 @@ class AdminUserPlanSerializer(serializers.ModelSerializer):
             "plan_id",
             "plan_name",
             "plan_type",
+            "plan_product",
             "plan_price",
             "plan_credit",
+            "credits_total",
+            "credits_used",
+            "credits_left",
             "validity_days",
             "start_date",
             "expiry_date",
             "status",
             "created_at",
         )
+
+    def get_credits_left(self, obj):
+        return max(0, int(obj.credits_total or 0) - int(obj.credits_used or 0))
 
 
 class AdminUserPaymentSerializer(serializers.ModelSerializer):
@@ -224,13 +262,32 @@ class AdminUserPaymentSerializer(serializers.ModelSerializer):
         )
 
 
+class AdminUserFlipbookSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Flipbook
+        fields = (
+            "id",
+            "title",
+            "flip_id",
+            "total_pages",
+            "view_count",
+            "like_count",
+            "is_active",
+            "active_until",
+            "created_at",
+        )
+
+
 class AdminUserListSerializer(serializers.ModelSerializer):
     credit_transactions = AdminUserCreditTransactionSerializer(many=True, read_only=True)
     orders = AdminUserOrderSerializer(many=True, read_only=True)
     user_plans = AdminUserPlanSerializer(many=True, read_only=True)
+    flipbooks = AdminUserFlipbookSerializer(many=True, read_only=True)
     payments = serializers.SerializerMethodField()
     total_view_count = serializers.IntegerField(read_only=True)
     total_like_count = serializers.IntegerField(read_only=True)
+    flipbook_count = serializers.IntegerField(read_only=True)
+    photo_selection_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -238,24 +295,32 @@ class AdminUserListSerializer(serializers.ModelSerializer):
             "user_id",
             "first_name",
             "last_name",
+            "dob",
             "email",
             "phone",
             "studio_name",
+            "whatsapp_number",
+            "instagram_url",
+            "facebook_url",
             "plan",
             "role",
-            "total_credit",
-            "used_credit",
-            "left_credit",
-            "expired_credit",
-            "credit_expire_date",
+            "is_active",
+            "flipbook_count",
+            "photo_selection_count",
             "total_view_count",
             "total_like_count",
             "created_at",
+            "updated_at",
+            "flipbooks",
             "credit_transactions",
             "orders",
             "user_plans",
             "payments",
         )
+
+    def get_photo_selection_count(self, user):
+        # Photo selection albums are not stored yet.
+        return 0
 
     def get_payments(self, user):
         payments = []
@@ -277,11 +342,6 @@ class SignupResponseSerializer(UserProfileSerializer):
             "studio_name",
             "plan",
             "role",
-            "total_credit",
-            "used_credit",
-            "left_credit",
-            "expired_credit",
-            "credit_expire_date",
             "created_at",
         )
 
