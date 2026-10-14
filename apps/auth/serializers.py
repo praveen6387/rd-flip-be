@@ -319,8 +319,7 @@ class AdminUserListSerializer(serializers.ModelSerializer):
         )
 
     def get_photo_selection_count(self, user):
-        # Photo selection albums are not stored yet.
-        return 0
+        return user.photo_selections.count()
 
     def get_payments(self, user):
         payments = []

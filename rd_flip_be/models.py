@@ -2,6 +2,11 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 import uuid
+import secrets
+
+
+def generate_selection_code():
+    return str(secrets.randbelow(900000) + 100000)
 
 
 class User(AbstractUser):
@@ -528,3 +533,34 @@ class PasswordResetToken(models.Model):
 
     def __str__(self):
         return f"{self.user.email} reset token"
+
+
+class PhotoSelection(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="photo_selections")
+    share_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    access_code = models.CharField(max_length=6, unique=True, default=generate_selection_code, editable=False)
+    client_name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=30, blank=True)
+    folder_name = models.CharField(max_length=255)
+    original_folder_path = models.CharField(max_length=2048)
+    status = models.CharField(max_length=20, default="draft", choices=[("draft", "Draft"), ("pending", "Pending"), ("selected", "Selected")])
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class SelectionPhoto(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    album = models.ForeignKey(PhotoSelection, on_delete=models.CASCADE, related_name="photos")
+    original_name = models.CharField(max_length=255)
+    original_relative_path = models.CharField(max_length=2048, blank=True)
+    image_url = models.CharField(max_length=2048)
+    drive_file_id = models.CharField(max_length=255)
+    selected = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["original_name"]
+        constraints = [models.UniqueConstraint(fields=["album", "original_name"], name="unique_selection_filename")]
