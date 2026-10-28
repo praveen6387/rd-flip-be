@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import AlbumsView, AlbumView, PhotoView, PublicAlbumView, SelectionCodeView
+from .views import AlbumsView, AlbumView, PhotoView, PublicAlbumView, SelectionCodeView, SelectionStorageCheckView
 urlpatterns = [
     path("", AlbumsView.as_view()),
+    path("storage-check/", SelectionStorageCheckView.as_view()),
     path("access/", SelectionCodeView.as_view()),
     path("public/<uuid:token>/", PublicAlbumView.as_view()),
     path("<uuid:album_id>/", AlbumView.as_view()),

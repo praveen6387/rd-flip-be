@@ -4,19 +4,20 @@ import os
 import time
 from contextlib import nullcontext
 from unittest.mock import Mock, patch
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 from .views import PhotoSerializer, PublicAlbumView, AlbumsView, AlbumView
 
 
+@override_settings(AWS_S3_BUCKET="rd-flip-photos", AWS_S3_REGION="ap-south-1")
 class SelectionTests(SimpleTestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
 
-    def photo_payload(self, name="original.PNG"):
+    def photo_payload(self, name="original.PNG", key="photo-selection/album/photo.jpg"):
         expiry = int(time.time()) + 600
-        message = f"album:file_123:{name}:{name}:{expiry}"
-        return {"name": name, "driveFileId": "file_123", "imageUrl": "/selection-media/file_123", "uploadExpires": expiry, "uploadProof": hmac.new(b"test-secret", message.encode(), hashlib.sha256).hexdigest()}
+        message = f"album:{key}:{name}:{name}:{expiry}"
+        return {"name": name, "objectKey": key, "imageUrl": f"https://rd-flip-photos.s3.ap-south-1.amazonaws.com/{key}", "uploadExpires": expiry, "uploadProof": hmac.new(b"test-secret", message.encode(), hashlib.sha256).hexdigest()}
 
     @patch.dict(os.environ, {"PHOTO_SELECTION_UPLOAD_SECRET": "test-secret"})
     def test_signed_upload_preserves_original_name(self):
@@ -25,10 +26,10 @@ class SelectionTests(SimpleTestCase):
         self.assertEqual(serializer.validated_data["name"], "original.PNG")
 
     @patch.dict(os.environ, {"PHOTO_SELECTION_UPLOAD_SECRET": "test-secret"})
-    def test_upload_cannot_reference_arbitrary_drive_file(self):
+    def test_upload_cannot_reference_arbitrary_object(self):
         data = self.photo_payload()
-        data["driveFileId"] = "private_file"
-        data["imageUrl"] = "/selection-media/private_file"
+        data["objectKey"] = "other-bucket/private.jpg"
+        data["imageUrl"] = "https://rd-flip-photos.s3.ap-south-1.amazonaws.com/other-bucket/private.jpg"
         self.assertFalse(PhotoSerializer(data=data, context={"album_id": "album"}).is_valid())
 
     @patch.dict(os.environ, {"PHOTO_SELECTION_UPLOAD_SECRET": "test-secret"})
@@ -46,10 +47,10 @@ class SelectionTests(SimpleTestCase):
     @patch("apps.photo_selection.views.get_object_or_404")
     @patch("apps.photo_selection.views.transaction.atomic", return_value=nullcontext())
     def test_public_submission_rejects_foreign_photo_ids(self, atomic, get_album):
-        album = Mock(status="pending")
+        album = Mock(status="pending", access_code="368373", user_id=9)
         album.photos.values_list.return_value = ["valid-photo"]
         get_album.return_value = album
-        response = PublicAlbumView.as_view()(self.factory.post("/", {"selectedIds": ["foreign-photo"]}, format="json"), token="share")
+        response = PublicAlbumView.as_view()(self.factory.post("/", {"selectedIds": ["foreign-photo"]}, format="json", HTTP_X_SELECTION_CODE="368373"), token="share")
         self.assertEqual(response.status_code, 400)
         album.photos.update.assert_not_called()
         album.save.assert_not_called()
@@ -57,20 +58,20 @@ class SelectionTests(SimpleTestCase):
     @patch("apps.photo_selection.views.get_object_or_404")
     @patch("apps.photo_selection.views.transaction.atomic", return_value=nullcontext())
     def test_submission_cannot_be_changed(self, atomic, get_album):
-        album = Mock(status="selected")
+        album = Mock(status="selected", access_code="368373", user_id=9)
         get_album.return_value = album
-        response = PublicAlbumView.as_view()(self.factory.post("/", {"selectedIds": ["photo"]}, format="json"), token="share")
+        response = PublicAlbumView.as_view()(self.factory.post("/", {"selectedIds": ["photo"]}, format="json", HTTP_X_SELECTION_CODE="368373"), token="share")
         self.assertEqual(response.status_code, 409)
         album.photos.update.assert_not_called()
 
     @patch("apps.photo_selection.views.get_object_or_404")
     @patch("apps.photo_selection.views.transaction.atomic", return_value=nullcontext())
     def test_successful_submission_sets_selected_and_timestamp(self, atomic, get_album):
-        album = Mock(status="pending")
+        album = Mock(status="pending", access_code="368373", user_id=9)
         album.photos.values_list.return_value = ["one", "two"]
         get_album.return_value = album
         with patch("apps.photo_selection.views.album_data", return_value={}):
-            response = PublicAlbumView.as_view()(self.factory.post("/", {"selectedIds": ["two"]}, format="json"), token="share")
+            response = PublicAlbumView.as_view()(self.factory.post("/", {"selectedIds": ["two"]}, format="json", HTTP_X_SELECTION_CODE="368373"), token="share")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(album.status, "selected")
         self.assertIsNotNone(album.submitted_at)
@@ -171,3 +172,28 @@ class SelectionCodeTests(SimpleTestCase):
             SelectionCodeView.as_view()(self.factory.post("/", {"code": "123456"}, format="json"))
         response = SelectionCodeView.as_view()(self.factory.post("/", {"code": "123456"}, format="json"))
         self.assertEqual(response.status_code, 429)
+
+
+class StorageReadinessTests(SimpleTestCase):
+    @patch.dict(os.environ, {"PHOTO_SELECTION_UPLOAD_SECRET": "shared-secret"})
+    def test_matching_secret_is_ready(self):
+        from .views import SelectionStorageCheckView
+        expires = int(time.time()) + 60
+        proof = hmac.new(b"shared-secret", f"selection-storage:studio-uuid:{expires}".encode(), hashlib.sha256).hexdigest()
+        request = APIRequestFactory().post("/", {"expires": expires, "proof": proof}, format="json")
+        force_authenticate(request, user=Mock(user_id="studio-uuid", is_authenticated=True))
+        self.assertEqual(SelectionStorageCheckView.as_view()(request).status_code, 200)
+
+    @patch.dict(os.environ, {"PHOTO_SELECTION_UPLOAD_SECRET": "shared-secret"})
+    def test_mismatched_secret_blocks_storage(self):
+        from .views import SelectionStorageCheckView
+        request = APIRequestFactory().post("/", {"expires": int(time.time()) + 60, "proof": "wrong"}, format="json")
+        force_authenticate(request, user=Mock(user_id="studio-uuid", is_authenticated=True))
+        self.assertEqual(SelectionStorageCheckView.as_view()(request).status_code, 503)
+
+    @patch.dict(os.environ, {"PHOTO_SELECTION_UPLOAD_SECRET": ""})
+    def test_missing_secret_blocks_storage(self):
+        from .views import SelectionStorageCheckView
+        request = APIRequestFactory().post("/", {}, format="json")
+        force_authenticate(request, user=Mock(is_authenticated=True))
+        self.assertEqual(SelectionStorageCheckView.as_view()(request).status_code, 503)
