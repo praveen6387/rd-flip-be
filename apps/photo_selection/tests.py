@@ -6,6 +6,7 @@ from contextlib import nullcontext
 from unittest.mock import Mock, patch
 from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
+from rd_flip_be.models import PhotoSelection, SelectionPhoto
 from .views import PhotoSerializer, PublicAlbumView, AlbumsView, AlbumView
 
 
@@ -93,9 +94,10 @@ class SelectionTests(SimpleTestCase):
     def test_no_credit_rejects_creation_without_charging(self, atomic, users, plans):
         users.select_for_update.return_value.get.return_value = Mock()
         plans.select_for_update.return_value.filter.return_value.select_related.return_value.order_by.return_value = []
-        request = self.factory.post("/", {"clientName": "Client", "folderName": "Wedding", "originalFolderPath": "/Photos/Wedding"}, format="json")
+        request = self.factory.post("/", {"id": "11111111-1111-1111-1111-111111111111", "clientName": "Client", "folderName": "Wedding", "originalFolderPath": "/Photos/Wedding", "photos": [{"name": "A.JPG"}]}, format="json")
         force_authenticate(request, user=Mock(is_authenticated=True))
-        with patch("apps.photo_selection.views.PhotoSelection.objects.create") as create, patch("apps.photo_selection.views.create_credit_transaction") as ledger:
+        photo_serializer = Mock(is_valid=Mock(return_value=True), validated_data=[{"name": "A.JPG", "imageUrl": "https://example.com/a.jpg", "objectKey": "photo-selection/11111111-1111-1111-1111-111111111111/a.jpg", "originalRelativePath": "A.JPG"}])
+        with patch("apps.photo_selection.views.PhotoSerializer", return_value=photo_serializer), patch("apps.photo_selection.views.PhotoSelection.objects.create") as create, patch("apps.photo_selection.views.create_credit_transaction") as ledger:
             response = AlbumsView.as_view()(request)
         self.assertEqual(response.status_code, 403)
         create.assert_not_called()
@@ -110,21 +112,26 @@ class SelectionTests(SimpleTestCase):
     @patch("apps.photo_selection.views.UserPlan.objects")
     @patch("apps.photo_selection.views.User.objects")
     @patch("apps.photo_selection.views.transaction.atomic", return_value=nullcontext())
-    def test_creation_spends_one_specific_credit_before_all(self, atomic, users, plans):
+    def test_creation_saves_the_folder_and_photos_then_spends_one_credit(self, atomic, users, plans):
         user = Mock()
         users.select_for_update.return_value.get.return_value = user
         shared = Mock(credits_used=3); shared.plan.product = "all"
         specific = Mock(credits_used=1); specific.plan.product = "photo_selection"
         plans.select_for_update.return_value.filter.return_value.select_related.return_value.order_by.return_value = [shared, specific]
-        request = self.factory.post("/", {"clientName": "Client", "folderName": "Wedding", "originalFolderPath": "/Photos/Wedding"}, format="json")
+        request = self.factory.post("/", {"id": "11111111-1111-1111-1111-111111111111", "clientName": "Client", "folderName": "Wedding", "originalFolderPath": "/Photos/Wedding", "photos": [{"name": "A.JPG"}]}, format="json")
         force_authenticate(request, user=Mock(is_authenticated=True))
-        with patch("apps.photo_selection.views.PhotoSelection.objects.create") as create, patch("apps.photo_selection.views.create_credit_transaction") as ledger, patch("apps.photo_selection.views.album_data", return_value={}):
+        photo_serializer = Mock(is_valid=Mock(return_value=True), validated_data=[{"name": "A.JPG", "imageUrl": "https://example.com/a.jpg", "objectKey": "photo-selection/11111111-1111-1111-1111-111111111111/a.jpg", "originalRelativePath": "A.JPG"}])
+        with patch("apps.photo_selection.views.PhotoSerializer", return_value=photo_serializer), patch("apps.photo_selection.views.PhotoSelection.objects.create") as create, patch.object(SelectionPhoto.objects, "bulk_create") as saved_photos, patch("apps.photo_selection.views.create_credit_transaction") as ledger, patch("apps.photo_selection.views.album_data", return_value={}):
+            create.return_value = PhotoSelection(client_name="Client", folder_name="Wedding", original_folder_path="/Photos/Wedding", status="pending")
             response = AlbumsView.as_view()(request)
         self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(saved_photos.call_args.args[0]), 1)
         self.assertEqual(specific.credits_used, 2)
         self.assertEqual(shared.credits_used, 3)
         self.assertEqual(ledger.call_args.kwargs["credits"], -1)
         self.assertEqual(ledger.call_args.kwargs["user_plan"], specific)
+        self.assertEqual(create.call_args.kwargs["status"], "pending")
+        self.assertEqual(str(create.call_args.kwargs["id"]), "11111111-1111-1111-1111-111111111111")
 
 
 class SelectionCodeTests(SimpleTestCase):

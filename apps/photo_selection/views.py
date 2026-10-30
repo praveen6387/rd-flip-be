@@ -18,10 +18,20 @@ from apps.flipbooks.s3 import canonical_image_url, presign_image_urls
 
 
 class CreateSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
     clientName = serializers.CharField(max_length=255)
     phone = serializers.CharField(max_length=30, allow_blank=True, required=False, default="")
     folderName = serializers.CharField(max_length=255)
     originalFolderPath = serializers.CharField(max_length=2048)
+    photos = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+
+    def validate(self, attrs):
+        photo_serializer = PhotoSerializer(data=attrs["photos"], many=True, context={"album_id": str(attrs["id"])})
+        photo_serializer.is_valid(raise_exception=True)
+        attrs["photos"] = photo_serializer.validated_data
+        if len({row["name"] for row in attrs["photos"]}) != len(attrs["photos"]):
+            raise serializers.ValidationError("Each photo must have a unique original filename.")
+        return attrs
 
 
 class PhotoSerializer(serializers.Serializer):
@@ -74,6 +84,11 @@ def album_data(album, public=False):
     return data
 
 
+def active_selection_plan(user):
+    rows = list(UserPlan.objects.select_for_update().filter(user=user, status="active", expiry_date__gt=timezone.now(), plan__product__in=["photo_selection", "all"], plan__price__gt=0, credits_total__gt=F("credits_used")).select_related("plan").order_by("expiry_date", "id"))
+    return next((row for row in rows if row.plan.product == "photo_selection"), rows[0] if rows else None)
+
+
 class AlbumsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -86,19 +101,21 @@ class AlbumsView(APIView):
         values = serializer.validated_data
         with transaction.atomic():
             user = User.objects.select_for_update().get(pk=request.user.pk)
-            rows = list(UserPlan.objects.select_for_update().filter(user=user, status="active", expiry_date__gt=timezone.now(), plan__product__in=["photo_selection", "all"], plan__price__gt=0, credits_total__gt=F("credits_used")).select_related("plan").order_by("expiry_date", "id"))
-            row = next((r for r in rows if r.plan.product == "photo_selection"), rows[0] if rows else None)
+            row = active_selection_plan(user)
             if row is None:
                 return api_fail("Buy a Photo Selection or All plan to create a folder.", data={"code": "selection_credit_required"}, http_status=403)
             for attempt in range(20):
                 try:
                     with transaction.atomic():
-                        album = PhotoSelection.objects.create(user=user, client_name=values["clientName"], phone=values["phone"], folder_name=values["folderName"], original_folder_path=values["originalFolderPath"])
+                        album = PhotoSelection.objects.create(id=values["id"], user=user, client_name=values["clientName"], phone=values["phone"], folder_name=values["folderName"], original_folder_path=values["originalFolderPath"], status="pending")
                     break
                 except IntegrityError:
                     if attempt == 19:
                         raise
-
+            SelectionPhoto.objects.bulk_create([
+                SelectionPhoto(album=album, original_name=row_photo["name"], image_url=row_photo["imageUrl"], drive_file_id=row_photo["objectKey"], original_relative_path=row_photo["originalRelativePath"])
+                for row_photo in values["photos"]
+            ])
             row.credits_used += 1
             row.save(update_fields=["credits_used", "updated_at"])
             create_credit_transaction(user=user, credit_type="usage", credits=-1, user_plan=row, description=f"Photo selection folder {album.id}")
