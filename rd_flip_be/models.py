@@ -598,6 +598,7 @@ class SelectionPhoto(models.Model):
     rating = models.PositiveSmallIntegerField(default=0)
     cover_type = models.CharField(max_length=5, blank=True)
     notes = models.TextField(blank=True)
+    rotation = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ["original_name"]

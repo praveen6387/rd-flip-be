@@ -158,7 +158,10 @@ def album_data(album, public=False):
     photos = []
     for photo, url in zip(rows, signed):
         category, subfolder = photo_folders(photo)
-        photos.append({"id": str(photo.id), "name": photo.original_name, "imageUrl": url, "selected": photo.selected, "originalRelativePath": photo.original_relative_path or photo.original_name, "rating": photo.rating or 0, "coverType": photo.cover_type or None, "notes": photo.notes or "", "category": category, "subfolder": subfolder})
+        rotation = getattr(photo, "rotation", 0)
+        if rotation not in (0, 90, 180, 270):
+            rotation = 0
+        photos.append({"id": str(photo.id), "name": photo.original_name, "imageUrl": url, "selected": photo.selected, "originalRelativePath": photo.original_relative_path or photo.original_name, "rating": photo.rating or 0, "coverType": photo.cover_type or None, "notes": photo.notes or "", "category": category, "subfolder": subfolder, "rotation": rotation})
     selected_count = sum(photo["selected"] for photo in photos)
     data = {"id": str(album.id), "clientName": album.client_name, "folderName": album.folder_name,
             "status": album.status, "createdAt": album.created_at, "photoCount": len(photos),
@@ -310,6 +313,19 @@ class AlbumView(APIView):
 
 class PhotoView(APIView):
     permission_classes = (IsAuthenticated,)
+
+    def post(self, request, album_id, photo_id):
+        if request.data.get("action") != "rotate":
+            return api_fail("Unsupported photo action.")
+        with transaction.atomic():
+            album = get_object_or_404(PhotoSelection.objects.select_for_update(), pk=album_id, user=request.user)
+            if album.status == "selected":
+                return api_fail("This gallery is locked.")
+            photo = get_object_or_404(SelectionPhoto, pk=photo_id, album=album)
+            current = photo.rotation if photo.rotation in (0, 90, 180, 270) else 0
+            photo.rotation = (current + 90) % 360
+            photo.save(update_fields=["rotation"])
+        return api_success("Photo rotated", {"photo": {"id": str(photo.id), "rotation": photo.rotation}})
 
     def delete(self, request, album_id, photo_id):
         with transaction.atomic():
