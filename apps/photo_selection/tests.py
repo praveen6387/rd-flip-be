@@ -3,6 +3,7 @@ import hmac
 import os
 import time
 from contextlib import nullcontext
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -132,6 +133,156 @@ class SelectionTests(SimpleTestCase):
         self.assertEqual(ledger.call_args.kwargs["user_plan"], specific)
         self.assertEqual(create.call_args.kwargs["status"], "pending")
         self.assertEqual(str(create.call_args.kwargs["id"]), "11111111-1111-1111-1111-111111111111")
+
+    @patch("apps.photo_selection.views.UserPlan.objects")
+    @patch("apps.photo_selection.views.User.objects")
+    @patch("apps.photo_selection.views.transaction.atomic", return_value=nullcontext())
+    def test_draft_folder_is_saved_without_charging(self, atomic, users, plans):
+        users.select_for_update.return_value.get.return_value = Mock()
+        specific = Mock(credits_used=1)
+        specific.plan.product = "photo_selection"
+        plans.select_for_update.return_value.filter.return_value.select_related.return_value.order_by.return_value = [specific]
+        request = self.factory.post("/", {"id": "11111111-1111-1111-1111-111111111111", "clientName": "Client", "folderName": "Wedding", "wizardStep": 2}, format="json")
+        force_authenticate(request, user=Mock(is_authenticated=True))
+        with patch("apps.photo_selection.views.PhotoSelection.objects.create") as create, patch.object(SelectionPhoto.objects, "bulk_create") as saved_photos, patch("apps.photo_selection.views.create_credit_transaction") as ledger, patch("apps.photo_selection.views.album_data", return_value={}):
+            create.return_value = PhotoSelection(client_name="Client", folder_name="Wedding", status="draft")
+            response = AlbumsView.as_view()(request)
+        self.assertEqual(response.status_code, 201)
+        saved_photos.assert_not_called()
+        ledger.assert_not_called()
+        self.assertEqual(specific.credits_used, 1)
+        self.assertEqual(create.call_args.kwargs["status"], "draft")
+        self.assertEqual(create.call_args.kwargs["wizard_step"], 2)
+
+    @patch("apps.photo_selection.views.album_data", return_value={})
+    @patch("apps.photo_selection.views.get_object_or_404")
+    @patch("apps.photo_selection.views.transaction.atomic", return_value=nullcontext())
+    def test_reopen_keeps_the_receipt_and_allows_a_new_select(self, atomic, get_album, album_data):
+        from apps.photo_selection.selection import toggle_photo
+        album = Mock(status="selected", confirmed_by_name="Asha", confirmation_notes="keep", rules_configured=True, selection_mode="UNLIMITED")
+        get_album.return_value = album
+        request = self.factory.post("/", {"action": "reopen"}, format="json")
+        force_authenticate(request, user=Mock(is_authenticated=True))
+        response = AlbumView.as_view()(request, album_id="album")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(album.status, "pending")
+        self.assertEqual(album.confirmed_by_name, "Asha")
+        self.assertEqual(album.save.call_args.kwargs["update_fields"], ["status"])
+        album.photos.filter.return_value.count.return_value = 0
+        album.photos.count.return_value = 4
+        photo = Mock(selected=False, id="photo")
+        saved = toggle_photo(album, photo, True)
+        self.assertEqual(saved.status_code, 200)
+        self.assertTrue(photo.selected)
+        photo.save.assert_called()
+
+
+class SelectionRuleTests(SimpleTestCase):
+    def album(self, **kwargs):
+        values = {"selection_mode": "FIXED", "required_photos": 100, "included_photos": 100, "allow_extra_photos": True, "strict_limit": False, "max_selection_limit": 100, "photos_per_sheet": 4, "included_sheets": 25, "enable_extra_photo_pricing": False, "extra_photo_price": 0, "enable_extra_sheet_pricing": False, "extra_sheet_price": 0}
+        values.update(kwargs)
+        return SimpleNamespace(**values)
+
+    def test_fixed_confirmation_uses_the_smaller_of_target_and_uploaded_photos(self):
+        from apps.photo_selection.selection import confirm_error
+        album = self.album()
+        self.assertIn("2 more", confirm_error(album, 1, 3))
+        self.assertIsNone(confirm_error(album, 3, 3))
+        self.assertIn("exactly 100", confirm_error(album, 101, 120))
+
+    def test_strict_fixed_mode_stops_selection_at_the_target(self):
+        from apps.photo_selection.selection import select_limit_error
+        album = self.album(required_photos=2, strict_limit=True)
+        self.assertIn("Fixed selection target reached (2 photos)", select_limit_error(album, 2))
+        self.assertIsNone(select_limit_error(album, 1))
+
+    def test_minimum_mode_rejects_a_short_selection_and_blocks_disabled_extras(self):
+        from apps.photo_selection.selection import confirm_error, select_limit_error
+        album = self.album(selection_mode="MIN_EXTRA", included_photos=2, allow_extra_photos=False)
+        self.assertIn("1 more", confirm_error(album, 1, 5))
+        self.assertIsNone(confirm_error(album, 2, 5))
+        self.assertIn("Extra photos are disabled", select_limit_error(album, 2))
+
+    def test_unlimited_mode_only_requires_one_photo(self):
+        from apps.photo_selection.selection import confirm_error, select_limit_error
+        album = self.album(selection_mode="UNLIMITED", strict_limit=False)
+        self.assertEqual(confirm_error(album, 0, 5), "Please select at least one photo before confirming.")
+        self.assertIsNone(confirm_error(album, 4, 5))
+        self.assertIsNone(select_limit_error(album, 4))
+
+    def test_locked_gallery_rejects_a_change(self):
+        album = Mock(status="selected")
+        album.photos.filter.return_value.count.return_value = 1
+        photo = Mock(selected=False, id="photo")
+        from apps.photo_selection.selection import toggle_photo, update_photo_details
+        response = toggle_photo(album, photo, True)
+        self.assertEqual(response.status_code, 403)
+        photo.save.assert_not_called()
+        rated = update_photo_details(album, photo, {"rating": 4})
+        self.assertEqual(rated.status_code, 403)
+        photo.save.assert_not_called()
+
+    def test_unconfigured_rules_behave_as_unlimited(self):
+        from apps.photo_selection.selection import confirm_error, mode_of, select_limit_error
+        album = self.album(rules_configured=False, strict_limit=True, required_photos=2)
+        self.assertEqual(mode_of(album), "UNLIMITED")
+        self.assertIsNone(select_limit_error(album, 5, 8))
+        self.assertIsNone(confirm_error(album, 4, 8))
+        self.assertEqual(confirm_error(album, 0, 8), "Please select at least one photo before confirming.")
+
+    def test_fixed_confirm_requires_the_capped_exact_count(self):
+        from apps.photo_selection.selection import confirm_error
+        album = self.album(rules_configured=True, required_photos=100)
+        self.assertIsNone(confirm_error(album, 3, 3))
+        self.assertIn("1 more", confirm_error(album, 2, 3))
+        self.assertIn("exactly 3", confirm_error(album, 4, 3))
+
+    def test_fixed_strict_limit_rejects_the_next_select_without_saving(self):
+        from apps.photo_selection.selection import select_limit_error, toggle_photo
+        album = self.album(rules_configured=True, required_photos=100, strict_limit=True)
+        self.assertIn("Fixed selection target reached (3 photos)", select_limit_error(album, 3, 3))
+        self.assertIsNone(select_limit_error(album, 2, 3))
+        stored = Mock(status="pending", rules_configured=True, selection_mode="FIXED", required_photos=2, strict_limit=True, allow_extra_photos=True, included_photos=2, max_selection_limit=100)
+        stored.photos.filter.return_value.count.return_value = 2
+        stored.photos.count.return_value = 4
+        photo = Mock(selected=False, id="photo")
+        response = toggle_photo(stored, photo, True)
+        self.assertEqual(response.status_code, 400)
+        photo.save.assert_not_called()
+
+    def test_minimum_extra_charges_only_when_pricing_is_enabled(self):
+        from decimal import Decimal
+        from apps.photo_selection.selection import confirmation_snapshot, confirm_error, select_limit_error
+        album = self.album(selection_mode="MIN_EXTRA", rules_configured=True, included_photos=2, photos_per_sheet=4, enable_extra_photo_pricing=True, extra_photo_price=Decimal("50"), enable_extra_sheet_pricing=True, extra_sheet_price=Decimal("300"), allow_extra_photos=False)
+        self.assertIn("1 more", confirm_error(album, 1, 10))
+        self.assertIsNone(confirm_error(album, 2, 10))
+        self.assertIn("Selection limit is 2", select_limit_error(album, 2, 10))
+        snapshot = confirmation_snapshot(album, 5, 10, "Asha", "  retouch  ")
+        self.assertEqual(snapshot["confirmed_by_name"], "Asha")
+        self.assertEqual(snapshot["extra_photos_count"], 3)
+        self.assertEqual(snapshot["estimated_sheets"], 2)
+        self.assertEqual(snapshot["extra_sheets_count"], 1)
+        self.assertEqual(snapshot["extra_photo_charge"], Decimal("150"))
+        self.assertEqual(snapshot["extra_sheet_charge"], Decimal("300"))
+        self.assertEqual(snapshot["total_extra_charge"], Decimal("450"))
+        quiet = self.album(selection_mode="MIN_EXTRA", rules_configured=True, included_photos=2, photos_per_sheet=4, extra_photo_price=Decimal("50"), extra_sheet_price=Decimal("300"))
+        self.assertEqual(confirmation_snapshot(quiet, 5, 10)["total_extra_charge"], 0)
+
+    def test_one_front_and_one_back_cover(self):
+        from apps.photo_selection.selection import update_photo_details
+        album = Mock(status="pending", rules_configured=True, selection_mode="UNLIMITED")
+        album.photos.count.return_value = 6
+        album.photos.filter.return_value.count.return_value = 0
+        front = Mock(selected=False, pk="front", id="front")
+        back = Mock(selected=False, pk="back", id="back")
+        self.assertEqual(update_photo_details(album, front, {"coverType": "FRONT"}).status_code, 200)
+        self.assertEqual(update_photo_details(album, back, {"coverType": "BACK"}).status_code, 200)
+        self.assertEqual(front.cover_type, "FRONT")
+        self.assertEqual(back.cover_type, "BACK")
+        self.assertTrue(front.selected and back.selected)
+        album.photos.filter.return_value.exclude.assert_any_call(pk="front")
+        album.photos.filter.return_value.exclude.assert_any_call(pk="back")
+        album.photos.filter.return_value.exclude.return_value.update.assert_called_with(cover_type="")
 
 
 class SelectionCodeTests(SimpleTestCase):

@@ -94,6 +94,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "instagram_url",
             "facebook_url",
+            "watermark_enabled",
+            "watermark_text",
+            "watermark_position",
+            "watermark_opacity",
             "active_balances",
             "total_view_count",
             "total_like_count",
@@ -382,11 +386,19 @@ class UpdateSocialLinksSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "instagram_url",
             "facebook_url",
+            "watermark_enabled",
+            "watermark_text",
+            "watermark_position",
+            "watermark_opacity",
         )
         extra_kwargs = {
             "whatsapp_number": {"required": False, "allow_blank": True},
             "instagram_url": {"required": False, "allow_blank": True},
             "facebook_url": {"required": False, "allow_blank": True},
+            "watermark_enabled": {"required": False},
+            "watermark_text": {"required": False, "allow_blank": True},
+            "watermark_position": {"required": False, "allow_blank": True},
+            "watermark_opacity": {"required": False},
         }
 
     def validate_whatsapp_number(self, value):
@@ -395,9 +407,24 @@ class UpdateSocialLinksSerializer(serializers.ModelSerializer):
             return ""
         return normalize_indian_phone(number)
 
+    def validate_watermark_text(self, value):
+        return (value or "").strip()[:120]
+
+    def validate_watermark_position(self, value):
+        position = (value or "bottom-right").strip()
+        if position not in {"bottom-right", "bottom-left", "top-right", "top-left", "center", "diagonal"}:
+            raise serializers.ValidationError("Choose a watermark position.")
+        return position
+
+    def validate_watermark_opacity(self, value):
+        opacity = float(value)
+        if opacity < 0.15 or opacity > 0.95:
+            raise serializers.ValidationError("Watermark opacity must be between 15% and 95%.")
+        return opacity
+
     def validate(self, attrs):
         if not attrs:
-            raise serializers.ValidationError("Provide at least one of whatsapp_number, instagram_url, facebook_url.")
+            raise serializers.ValidationError("Provide a profile field to update.")
         return attrs
 
     def update(self, instance, validated_data):
