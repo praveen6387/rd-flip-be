@@ -48,6 +48,8 @@ class User(AbstractUser):
     watermark_text = models.CharField(max_length=120, blank=True, default="")
     watermark_position = models.CharField(max_length=20, blank=True, default="bottom-right")
     watermark_opacity = models.FloatField(default=0.45)
+    watermark_include_logo = models.BooleanField(default=True)
+    watermark_logo_url = models.CharField(max_length=500, blank=True, default="")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

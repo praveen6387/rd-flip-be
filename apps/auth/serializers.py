@@ -1,9 +1,11 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.flipbooks.s3 import canonical_image_url, presign_image_url
 from apps.auth.helpers import (
     create_password_reset_token,
     get_valid_reset_token,
@@ -78,6 +80,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     total_view_count = serializers.SerializerMethodField()
     total_like_count = serializers.SerializerMethodField()
     active_balances = serializers.SerializerMethodField()
+    watermark_logo_preview = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -98,6 +101,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "watermark_text",
             "watermark_position",
             "watermark_opacity",
+            "watermark_include_logo",
+            "watermark_logo_url",
+            "watermark_logo_preview",
             "active_balances",
             "total_view_count",
             "total_like_count",
@@ -120,6 +126,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
             }
             user._engagement_totals = cached
         return cached
+
+    def get_watermark_logo_preview(self, user):
+        url = getattr(user, "watermark_logo_url", "")
+        if not isinstance(url, str) or not url.strip():
+            return ""
+        return presign_image_url(url) or ""
 
     def get_total_view_count(self, user):
         return self._engagement_totals(user)["views"]
@@ -390,6 +402,8 @@ class UpdateSocialLinksSerializer(serializers.ModelSerializer):
             "watermark_text",
             "watermark_position",
             "watermark_opacity",
+            "watermark_include_logo",
+            "watermark_logo_url",
         )
         extra_kwargs = {
             "whatsapp_number": {"required": False, "allow_blank": True},
@@ -399,6 +413,8 @@ class UpdateSocialLinksSerializer(serializers.ModelSerializer):
             "watermark_text": {"required": False, "allow_blank": True},
             "watermark_position": {"required": False, "allow_blank": True},
             "watermark_opacity": {"required": False},
+            "watermark_include_logo": {"required": False},
+            "watermark_logo_url": {"required": False, "allow_blank": True},
         }
 
     def validate_whatsapp_number(self, value):
@@ -422,9 +438,27 @@ class UpdateSocialLinksSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Watermark opacity must be between 15% and 95%.")
         return opacity
 
+    def validate_watermark_logo_url(self, value):
+        raw = canonical_image_url(value or "")
+        if not raw:
+            return ""
+        user = self.instance or getattr(self.context.get("request"), "user", None)
+        user_id = getattr(user, "user_id", "")
+        bucket = settings.AWS_S3_BUCKET
+        region = settings.AWS_S3_REGION
+        prefix = f"https://{bucket}.s3.{region}.amazonaws.com/studio-logo/{user_id}/"
+        name = raw[len(prefix):] if raw.startswith(prefix) else ""
+        if not bucket or not user_id or not name or "/" in name or name in {".", ".."}:
+            raise serializers.ValidationError("Upload the studio logo again.")
+        return raw
+
     def validate(self, attrs):
         if not attrs:
             raise serializers.ValidationError("Provide a profile field to update.")
+        logo = attrs.get("watermark_logo_url", getattr(self.instance, "watermark_logo_url", ""))
+        include = attrs.get("watermark_include_logo", getattr(self.instance, "watermark_include_logo", False))
+        if include and not logo:
+            attrs["watermark_include_logo"] = False
         return attrs
 
     def update(self, instance, validated_data):

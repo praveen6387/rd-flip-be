@@ -15,7 +15,7 @@ from django.conf import settings
 from rd_flip_be.models import PhotoSelection, SelectionPhoto, User, UserPlan
 from rd_flip_be.credits import create_credit_transaction
 from rd_flip_be.responses import api_success, api_fail
-from apps.flipbooks.s3 import canonical_image_url, presign_image_urls
+from apps.flipbooks.s3 import canonical_image_url, presign_image_url, presign_image_urls
 from apps.photo_selection.selection import bool_attr, confirm_error, confirmation_snapshot, apply_snapshot, confirm_selection, decimal_attr, int_attr, mode_of, public_rules, toggle_photo, update_photo_details
 
 
@@ -120,7 +120,7 @@ def date_text(value):
 def public_watermark(user):
     enabled = getattr(user, "watermark_enabled", True)
     if not isinstance(enabled, bool):
-        return {"enabled": False, "text": "", "position": "bottom-right", "opacity": 0.45}
+        return {"enabled": False, "text": "", "position": "bottom-right", "opacity": 0.45, "logoUrl": "", "includeLogo": False}
     text = getattr(user, "watermark_text", "")
     text = text.strip() if isinstance(text, str) else ""
     studio = getattr(user, "studio_name", "")
@@ -133,7 +133,12 @@ def public_watermark(user):
         opacity = float(getattr(user, "watermark_opacity", 0.45))
     except (TypeError, ValueError):
         opacity = 0.45
-    return {"enabled": enabled and bool(text), "text": text, "position": position, "opacity": opacity}
+    include = getattr(user, "watermark_include_logo", False)
+    logo = getattr(user, "watermark_logo_url", "")
+    logo = logo.strip() if isinstance(include, bool) and include and isinstance(logo, str) else ""
+    signed = presign_image_url(logo) if enabled and logo else ""
+    shown_text = text if enabled else ""
+    return {"enabled": bool(shown_text or signed), "text": shown_text, "position": position, "opacity": opacity, "logoUrl": signed or "", "includeLogo": bool(signed)}
 
 
 def public_studio(user):
@@ -246,6 +251,13 @@ class AlbumView(APIView):
                 for key, field in (("eventDate", "event_date"), ("selectionDeadline", "selection_deadline")):
                     if key in request.data:
                         setattr(album, field, request.data.get(key) or None)
+                if "accessCode" in request.data:
+                    code = str(request.data.get("accessCode") or "").strip()
+                    if not code.isdigit() or len(code) != 6:
+                        return api_fail("The access code must be 6 digits.")
+                    if PhotoSelection.objects.exclude(pk=album.pk).filter(access_code=code).exists():
+                        return api_fail("That access code is already used. Choose another.")
+                    album.access_code = code
                 if int(album.wizard_step or 1) >= 3:
                     album.rules_configured = True
                 album.save()
