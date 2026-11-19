@@ -592,6 +592,7 @@ class SelectionPhoto(models.Model):
     album = models.ForeignKey(PhotoSelection, on_delete=models.CASCADE, related_name="photos")
     original_name = models.CharField(max_length=255)
     original_relative_path = models.CharField(max_length=2048, blank=True)
+    category = models.CharField(max_length=100, blank=True, default="")
     image_url = models.CharField(max_length=2048)
     drive_file_id = models.CharField(max_length=255)
     selected = models.BooleanField(default=False)

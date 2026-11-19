@@ -80,6 +80,31 @@ class SelectionTests(SimpleTestCase):
         album.photos.filter.assert_called_once_with(pk__in=["two"])
         album.photos.filter.return_value.update.assert_called_once_with(selected=True)
 
+    @patch("apps.photo_selection.views.delete_s3_prefix")
+    @patch("apps.photo_selection.views.get_object_or_404")
+    def test_deleting_a_folder_removes_its_stored_photos_first(self, get_album, delete_prefix):
+        album = Mock(id="album-id")
+        album.delete = Mock()
+        get_album.return_value = album
+        request = self.factory.delete("/")
+        force_authenticate(request, user=Mock(is_authenticated=True))
+        response = AlbumView.as_view()(request, album_id="album-id")
+        self.assertEqual(response.status_code, 200)
+        delete_prefix.assert_called_once_with("photo-selection/album-id/")
+        album.delete.assert_called_once_with()
+
+    @patch("apps.photo_selection.views.delete_s3_prefix", side_effect=RuntimeError("s3"))
+    @patch("apps.photo_selection.views.get_object_or_404")
+    def test_folder_is_kept_when_stored_photos_cannot_be_deleted(self, get_album, delete_prefix):
+        album = Mock(id="album-id")
+        album.delete = Mock()
+        get_album.return_value = album
+        request = self.factory.delete("/")
+        force_authenticate(request, user=Mock(is_authenticated=True))
+        response = AlbumView.as_view()(request, album_id="album-id")
+        self.assertEqual(response.status_code, 400)
+        album.delete.assert_not_called()
+
     @patch("apps.photo_selection.views.get_object_or_404")
     @patch("apps.photo_selection.views.transaction.atomic", return_value=nullcontext())
     def test_studio_cannot_edit_submitted_folder(self, atomic, get_album):

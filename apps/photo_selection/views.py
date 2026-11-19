@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 import os
 import time
 from datetime import date, datetime
@@ -15,8 +16,10 @@ from django.conf import settings
 from rd_flip_be.models import PhotoSelection, SelectionPhoto, User, UserPlan
 from rd_flip_be.credits import create_credit_transaction
 from rd_flip_be.responses import api_success, api_fail
-from apps.flipbooks.s3 import canonical_image_url, presign_image_url, presign_image_urls
+from apps.flipbooks.s3 import canonical_image_url, delete_s3_prefix, presign_image_url, presign_image_urls
 from apps.photo_selection.selection import bool_attr, confirm_error, confirmation_snapshot, apply_snapshot, confirm_selection, decimal_attr, int_attr, mode_of, public_rules, toggle_photo, update_photo_details
+
+logger = logging.getLogger(__name__)
 
 
 class CreateSerializer(serializers.Serializer):
@@ -62,9 +65,13 @@ class PhotoSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     imageUrl = serializers.CharField(max_length=2048)
     originalRelativePath = serializers.CharField(max_length=2048, required=False, default="")
+    category = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
     uploadExpires = serializers.IntegerField()
     uploadProof = serializers.CharField(max_length=64)
     objectKey = serializers.CharField(max_length=255)
+
+    def validate_category(self, value):
+        return " ".join(str(value or "").replace("\\", " ").replace("/", " ").split())[:100]
 
     def validate_name(self, value):
         if value in (".", "..") or "/" in value or "\\" in value:
@@ -99,6 +106,10 @@ class PhotoSerializer(serializers.Serializer):
 def photo_folders(photo):
     relative = (photo.original_relative_path or photo.original_name or "").replace("\\", "/")
     parts = [part for part in relative.split("/") if part]
+    stored = getattr(photo, "category", "")
+    stored = stored.strip() if isinstance(stored, str) else ""
+    if stored:
+        return stored, "/".join(parts[:-1])
     if len(parts) <= 1:
         return "", ""
     return parts[0], "/".join(parts[1:-1])
@@ -161,7 +172,7 @@ def album_data(album, public=False):
         rotation = getattr(photo, "rotation", 0)
         if rotation not in (0, 90, 180, 270):
             rotation = 0
-        photos.append({"id": str(photo.id), "name": photo.original_name, "imageUrl": url, "selected": photo.selected, "originalRelativePath": photo.original_relative_path or photo.original_name, "rating": photo.rating or 0, "coverType": photo.cover_type or None, "notes": photo.notes or "", "category": category, "subfolder": subfolder, "rotation": rotation})
+        photos.append({"id": str(photo.id), "name": photo.original_name, "imageUrl": url, "selected": photo.selected, "originalRelativePath": photo.original_relative_path or photo.original_name, "rating": photo.rating or 0, "coverType": photo.cover_type or None, "notes": photo.notes or "", "category": category, "subfolder": "" if public else subfolder, "rotation": rotation})
     selected_count = sum(photo["selected"] for photo in photos)
     data = {"id": str(album.id), "clientName": album.client_name, "folderName": album.folder_name,
             "status": album.status, "createdAt": album.created_at, "photoCount": len(photos),
@@ -208,7 +219,7 @@ class AlbumsView(APIView):
             if not values["photos"]:
                 return api_success("Gallery draft saved", {"album": album_data(album)}, http_status=201)
             SelectionPhoto.objects.bulk_create([
-                SelectionPhoto(album=album, original_name=row_photo["name"], image_url=row_photo["imageUrl"], drive_file_id=row_photo["objectKey"], original_relative_path=row_photo["originalRelativePath"])
+                SelectionPhoto(album=album, original_name=row_photo["name"], image_url=row_photo["imageUrl"], drive_file_id=row_photo["objectKey"], original_relative_path=row_photo["originalRelativePath"], category=row_photo.get("category") or "")
                 for row_photo in values["photos"]
             ])
             row.credits_used += 1
@@ -224,7 +235,13 @@ class AlbumView(APIView):
         return api_success("Folder fetched", {"album": album_data(get_object_or_404(PhotoSelection, pk=album_id, user=request.user))})
 
     def delete(self, request, album_id):
-        get_object_or_404(PhotoSelection, pk=album_id, user=request.user).delete()
+        album = get_object_or_404(PhotoSelection, pk=album_id, user=request.user)
+        try:
+            delete_s3_prefix(f"photo-selection/{album.id}/")
+        except Exception:
+            logger.exception("Could not delete stored photos for %s", album.id)
+            return api_fail("Could not delete the stored photos. The folder was kept.")
+        album.delete()
         return api_success("Folder deleted")
 
     def post(self, request, album_id):
@@ -298,12 +315,13 @@ class AlbumView(APIView):
                             image_url=row["imageUrl"],
                             drive_file_id=row["objectKey"],
                             original_relative_path=row["originalRelativePath"],
+                            category=row.get("category") or "",
                         )
                         for row in rows
                     ],
                     update_conflicts=True,
                     unique_fields=["album", "original_relative_path"],
-                    update_fields=["image_url", "drive_file_id", "original_relative_path"],
+                    update_fields=["image_url", "drive_file_id", "original_relative_path", "category"],
                 )
                 if request.data.get("publish") is True:
                     album.status = "pending"
